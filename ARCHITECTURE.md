@@ -16,7 +16,9 @@ ESPN Fantasy API ──► pipeline/ (Python) ──► data/fantasynfl.db (SQLi
 
 ```
 fantasynfl/
-├── README.md  PLAN.md  AGENTS.md  ARCHITECTURE.md  TASKS.md  .gitignore  .env.example
+├── README.md  PLAN.md  AGENTS.md  ARCHITECTURE.md  DEPLOY.md
+├── TASKS.md  TASKS-FEATURES.md  .gitignore  .env.example
+├── Dockerfile  docker-compose.yml
 ├── data/fantasynfl.db            # generated SQLite (gitignored)
 ├── pipeline/                     # PYTHON — DONE
 │   ├── pyproject.toml            # deps: espn_api, python-dotenv · dev: pytest, ruff
@@ -25,12 +27,13 @@ fantasynfl/
 │   │   ├── models.py             # SeasonData + Team/Matchup/RosterPlayer/... dataclasses
 │   │   ├── db.py                 # SQLite schema DDL + connect() + store_season()  ← SCHEMA SOURCE OF TRUTH
 │   │   ├── sample.py             # synthetic 12-team season generator
-│   │   ├── espn.py               # espn_api wrapper → SeasonData (needs creds; untested live)
+│   │   ├── espn.py               # espn_api wrapper → SeasonData (needs creds; unverified live — A3)
 │   │   ├── ingest.py             # build → store → compute
 │   │   ├── cli.py / __main__.py  # `python -m fantasynfl {sample|ingest|compute}`
 │   │   └── compute/              # elo, luck, predict, awards, sos, playoffs, records, __init__
-│   └── tests/                    # pytest
-└── web/                          # NEXT.JS — TO BE BUILT (see TASKS.md)
+│   └── tests/                    # pytest (26 tests)
+└── web/                          # NEXT.JS — DONE (10 pages; see TASKS.md)
+    └── src/{app,components,lib}
 ```
 
 ## Data contract (SQLite)
@@ -74,12 +77,14 @@ points = `gauss(base·talent·quality, base·0.45)`. Starters = best at each slo
 of the 9 starters (invariant holds by construction). 14 regular weeks (round-robin + rematches)
 + a top-6 playoff bracket (weeks 15–17). ~40 transactions. Deterministic seed (42).
 
-## Web (Next.js) — to be built
+## Web (Next.js) — built
 
 Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui + Recharts + Framer Motion. Reads the
 SQLite DB read-only via `better-sqlite3` in **server components only** (never client). 10 pages:
 overview, rankings, scores, recap, trends, predict, teams (+`[id]`), playoffs, players,
-transactions, records. Full spec in `TASKS.md`.
+transactions, records. Data layer in `src/lib/` (`db.ts`, `queries.ts`, `types.ts`, `format.ts`);
+shared charts/cards/motion in `src/components/`. Full spec in `TASKS.md`; planned feature additions
+(streaks, shame corner, shareable recap card, rivalry finder) in `TASKS-FEATURES.md`.
 
 ## Run
 
@@ -90,11 +95,13 @@ python -m fantasynfl sample      # → ../data/fantasynfl.db
 pytest                           # tests
 ruff check . && ruff format .    # lint
 
-# Web (once built)
-cd web && pnpm install && pnpm dev
+# Web
+cd web && pnpm install && pnpm dev   # http://localhost:3000
 ```
 
 ## Verified state
 Sample DB generated: 1 season · 12 teams · 17 weeks · 90 matchups · 2880 roster rows ·
 40 transactions · 204 elo · 204 luck · 98 awards · 204 sos · 168 playoff snapshots · 30 records.
-Invariant check: 0 mismatches. Tests written (pytest). See `TASKS.md` for what remains.
+Invariant check: 0 mismatches. Pipeline: `ruff` clean, 26 pytest tests pass. Web: all 10 pages
+render, `pnpm lint` + `pnpm build` clean. Only live ESPN ingest (TASKS A3/G5) remains, blocked on
+credentials.

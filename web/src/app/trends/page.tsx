@@ -1,4 +1,5 @@
 import { Flame } from "lucide-react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { PointsTrend } from "@/components/charts/PointsTrend";
@@ -138,20 +139,27 @@ export default function TrendsPage() {
                         const losses = rec?.losses ?? 0;
                         const played = wins + losses;
                         return (
-                          <td
-                            key={colTeam.id}
-                            className={cn(
-                              "rounded p-1 font-mono text-[10px] font-semibold tabular-nums",
-                              played === 0
-                                ? "bg-zinc-800/40 text-zinc-600"
-                                : wins > losses
-                                  ? "bg-emerald-500/10 text-emerald-400"
-                                  : wins < losses
-                                    ? "bg-rose-500/10 text-rose-400"
-                                    : "bg-zinc-700/30 text-zinc-300"
+                          <td key={colTeam.id} className="p-0">
+                            {played === 0 ? (
+                              <div className="rounded bg-zinc-800/40 p-1 text-center font-mono text-[10px] font-semibold tabular-nums text-zinc-600">
+                                ·
+                              </div>
+                            ) : (
+                              <Link
+                                href={`/rivalry?a=${rowTeam.id}&b=${colTeam.id}`}
+                                title={`${rowTeam.abbrev} vs ${colTeam.abbrev}`}
+                                className={cn(
+                                  "block rounded p-1 text-center font-mono text-[10px] font-semibold tabular-nums transition-all hover:ring-1 hover:ring-zinc-500",
+                                  wins > losses
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : wins < losses
+                                      ? "bg-rose-500/10 text-rose-400"
+                                      : "bg-zinc-700/30 text-zinc-300"
+                                )}
+                              >
+                                {`${wins}-${losses}`}
+                              </Link>
                             )}
-                          >
-                            {played === 0 ? "·" : `${wins}-${losses}`}
                           </td>
                         );
                       })}

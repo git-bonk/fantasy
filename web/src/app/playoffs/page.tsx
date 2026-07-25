@@ -1,10 +1,10 @@
 import { Crown } from "lucide-react";
-import { getLatestSeasonId, getMaxRegularWeek, getWeeks, getPlayoffStandings, getPlayoffBracket, getSeasons } from "@/lib/queries";
+import { getLatestSeasonId, getMaxRegularWeek, getWeeks, getPlayoffStandings, getPlayoffBracket, getSeasons, getStreaks } from "@/lib/queries";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
 import { Bracket } from "@/components/playoffs/Bracket";
 import { WeekSelector } from "@/components/WeekSelector";
 import { Reveal } from "@/components/motion/Reveal";
-import type { BracketGameRow } from "@/lib/types";
+import type { BracketGameRow, TeamStreak } from "@/lib/types";
 
 function findChampion(games: BracketGameRow[]) {
   if (games.length === 0) return null;
@@ -45,6 +45,9 @@ export default async function PlayoffsPage({
   const standings = getPlayoffStandings(seasonId, week);
   const bracket = getPlayoffBracket(seasonId);
   const champion = findChampion(bracket);
+  const streaks = new Map<number, TeamStreak>(
+    getStreaks(seasonId).map((s) => [s.team_id, { streak: s.streak, type: s.type }])
+  );
 
   const season = getSeasons().find((s) => s.id === seasonId);
   let playoffTeams = 6;
@@ -102,7 +105,7 @@ export default async function PlayoffsPage({
             <h2 className="font-display text-xl font-semibold tracking-tight">Standings</h2>
             <WeekSelector weeks={weeks} current={week} />
           </div>
-          <StandingsTable standings={standings} playoffTeams={playoffTeams} />
+          <StandingsTable standings={standings} playoffTeams={playoffTeams} streaks={streaks} />
         </section>
       </Reveal>
 

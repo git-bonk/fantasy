@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
 import type { RecapAwardRow } from "@/lib/types";
 
-const AWARD_META: Record<
+export const AWARD_META: Record<
   string,
   { icon: LucideIcon; label: string; color: string }
 > = {

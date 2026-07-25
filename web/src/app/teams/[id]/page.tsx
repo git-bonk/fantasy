@@ -14,9 +14,11 @@ import {
 import { CountUp } from "@/components/motion/CountUp";
 import { Reveal } from "@/components/motion/Reveal";
 import { SeasonPointsChart } from "@/components/charts/SeasonPointsChart";
+import { StreakBadge } from "@/components/cards/StreakBadge";
 import {
   getLatestSeasonId,
   getRankings,
+  getStreaks,
   getTeam,
   getTeamPointsByWeek,
   getTeamRecord,
@@ -43,6 +45,7 @@ export default async function TeamDetailPage({ params }: TeamDetailPageProps) {
   const pointsByWeek = getTeamPointsByWeek(seasonId, teamId);
   const roster = getTeamRoster(seasonId, teamId);
   const elo = getRankings(seasonId).find((r) => r.id === teamId)?.rating;
+  const teamStreak = getStreaks(seasonId).find((s) => s.team_id === teamId);
 
   const starters = roster.filter((r) => r.lineup_slot !== "BN");
   const bench = roster.filter((r) => r.lineup_slot === "BN");
@@ -73,6 +76,9 @@ export default async function TeamDetailPage({ params }: TeamDetailPageProps) {
             </h1>
             <p className="text-sm text-zinc-400">Owned by {team.owner_name}</p>
           </div>
+          {teamStreak && (
+            <StreakBadge streak={teamStreak.streak} type={teamStreak.type} className="px-2 py-1 text-xs" />
+          )}
           {record?.playoff_seed != null ? (
             <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
               Playoff Seed #{record.playoff_seed}

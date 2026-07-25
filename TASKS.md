@@ -1,9 +1,9 @@
 # TASKS — Fantasy NFL Dashboard (Frontend Build)
 
-> **For an independent agent.** Everything you need to build the remaining work is in this file.
-> Read `ARCHITECTURE.md` for deeper background, but this file is self-contained.
-> The **Python pipeline is DONE** and a sample database exists at `data/fantasynfl.db`.
-> Your job: build the **Next.js dashboard** in `web/` that reads that DB.
+> **STATUS: COMPLETE** (except ESPN live-ingest, blocked on credentials — see A3/G5).
+> The Python pipeline **and** the full Next.js dashboard in `web/` are built and verified.
+> This file is kept as the build spec / record of work. New feature work lives in
+> `TASKS-FEATURES.md`. Read `ARCHITECTURE.md` for deeper background.
 
 ---
 
@@ -11,9 +11,10 @@
 
 - **Done:** Python pipeline (`pipeline/`) that scrapes ESPN or generates a sample league, computes
   stats (Elo, luck, awards, SOS, playoff odds, records), and writes `data/fantasynfl.db`.
-- **Not done:** the entire `web/` Next.js app. The `web/` directory is empty.
-- **Goal:** a polished, modern **dark dashboard** with 10 pages that makes a fantasy league's data
-  look great. Aesthetic target: Linear/Vercel-style dark UI — clean, layered, subtle motion.
+- **Done:** the `web/` Next.js app — all 10 pages built, `pnpm lint` + `pnpm build` clean.
+- **Blocked:** live ESPN ingest (A3, G5) — needs real league credentials in `.env`.
+- **Goal (met):** a polished, modern **dark dashboard** with 10 pages that makes a fantasy league's
+  data look great. Aesthetic target: Linear/Vercel-style dark UI — clean, layered, subtle motion.
 
 **Do NOT modify the pipeline or the DB schema** unless a task explicitly says so. Treat
 `data/fantasynfl.db` as read-only input. If the DB is missing, regenerate it:
@@ -240,74 +241,74 @@ SELECT category, rank, detail, value, player_name FROM records ORDER BY category
 
 ## 7. Task list
 
-Work roughly in order A → G. Tasks within a group are mostly independent. Each task lists
-**Acceptance criteria** — meet them before marking done.
+Legend: `[x]` done · `[ ]` open · `[!]` blocked on ESPN credentials.
+Worked roughly in order A → G. Each task lists **Acceptance criteria**.
 
 ### Group A — Pipeline finishing (quick warm-up; Python)
-- **A1.** Make `ruff check .` clean and `pytest` fully green in `pipeline/`.
-  - *Accept:* `ruff check .` → 0 errors; `pytest` → all pass.
-- **A2.** Add `pipeline/requirements.txt` mirroring pyproject deps (convenience).
-- **A3.** *(Blocked on credentials)* Verify `pipeline/fantasynfl/espn.py` against a real league;
+- [x] **A1.** Make `ruff check .` clean and `pytest` fully green in `pipeline/`.
+  - *Accept:* `ruff check .` → 0 errors; `pytest` → all pass. *(26 tests pass.)*
+- [x] **A2.** Add `pipeline/requirements.txt` mirroring pyproject deps (convenience).
+- [!] **A3.** *(Blocked on credentials)* Verify `pipeline/fantasynfl/espn.py` against a real league;
   fix field mapping (lineup slots, `proTeam`, `playoff_tier_type`, transactions). Skip if no creds.
 
 ### Group B — Web scaffold & design foundation
-- **B1.** Scaffold Next.js into `web/`: `pnpm create next-app@latest web --ts --tailwind --app --eslint`
+- [x] **B1.** Scaffold Next.js into `web/`: `pnpm create next-app@latest web --ts --tailwind --app --eslint`
   (accept defaults; App Router). Add deps: `better-sqlite3 @types/better-sqlite3 recharts framer-motion
   lucide-react clsx tailwind-merge class-variance-authority`. Init shadcn/ui (`pnpm dlx shadcn@latest init`,
   new-york). Add the `next.config.ts` change from §3.
   - *Accept:* `pnpm build` succeeds on the default page.
-- **B2.** Implement the design system (§4): fonts via `next/font`, Tailwind theme tokens / CSS vars,
+- [x] **B2.** Implement the design system (§4): fonts via `next/font`, Tailwind theme tokens / CSS vars,
   `globals.css` ambient background, base card/button styling.
   - *Accept:* a throwaway page renders the dark theme, fonts, a card, and the ambient bg correctly.
-- **B3.** Add shadcn components needed: `button, card, badge, table, tabs, progress, select, tooltip, skeleton, separator`.
-- **B4.** Build layout: `app/layout.tsx` + `components/layout/Sidebar.tsx` (10 nav items, icons,
+- [x] **B3.** Add shadcn components needed: `button, card, badge, table, tabs, progress, select, tooltip, skeleton, separator`.
+- [x] **B4.** Build layout: `app/layout.tsx` + `components/layout/Sidebar.tsx` (10 nav items, icons,
   active highlight) + `components/layout/Topbar.tsx` (league name + season/week selectors).
   - *Accept:* sidebar navigates between placeholder pages; active item highlighted; responsive collapse.
 
 ### Group C — Data layer (`web/src/lib/`)
-- **C1.** `types.ts` — TS interfaces mirroring the schema (§2) + row types for queries.
-- **C2.** `db.ts` — read-only `better-sqlite3` singleton (§3 gotchas).
-- **C3.** `queries.ts` — typed functions for each page using the SQL in §6 (e.g. `getRankings(seasonId)`,
+- [x] **C1.** `types.ts` — TS interfaces mirroring the schema (§2) + row types for queries.
+- [x] **C2.** `db.ts` — read-only `better-sqlite3` singleton (§3 gotchas).
+- [x] **C3.** `queries.ts` — typed functions for each page using the SQL in §6 (e.g. `getRankings(seasonId)`,
   `getMatchups(seasonId, week)`, `getRecap(...)`, `getTrends(...)`, `getTeams(...)`, `getPlayoffs(...)`,
   `getPlayers(...)`, `getTransactions(...)`, `getRecords()`, `getSeasons()`, `getWeeks(seasonId)`).
-- **C4.** `format.ts` — helpers (`fmtPts`, `fmtRecord`, `fmtPct`, `fmtDate`, `cn` class merger).
+- [x] **C4.** `format.ts` — helpers (`fmtPts`, `fmtRecord`, `fmtPct`, `fmtDate`, `cn` class merger).
   - *Accept (C1–C4):* a server component can call each query and log typed results without errors.
 
 ### Group D — Shared components
-- **D1.** `components/charts/`: `EloLineChart`, `PointsTrend`, `WinProbBar`, `Sparkline` (Recharts, themed).
-- **D2.** `components/cards/`: `MatchupCard` (two teams, scores, winner highlight), `TeamCard`,
+- [x] **D1.** `components/charts/`: `EloLineChart`, `PointsTrend`, `WinProbBar`, `Sparkline` (Recharts, themed).
+- [x] **D2.** `components/cards/`: `MatchupCard` (two teams, scores, winner highlight), `TeamCard`,
   `AwardBadge` (icon + label per award type), `LuckMeter` (animated gauge −/+, Framer Motion), `StatCard`.
-- **D3.** Motion wrappers: page/section reveal, animated `CountUp` number.
+- [x] **D3.** Motion wrappers: page/section reveal, animated `CountUp` number.
   - *Accept:* each component renders with sample props and matches the design system.
 
 ### Group E — Core pages (6)
-- **E1. `/` Overview** — hero (league name, current/last week, #1 team, top matchup), 3–4 `StatCard`s
+- [x] **E1. `/` Overview** — hero (league name, current/last week, #1 team, top matchup), 3–4 `StatCard`s
   (highest score, closest finish, biggest upset, league avg), sparklines.
-- **E2. `/rankings`** — Elo power table (rank, team, rating, movement vs last week) + `EloLineChart`.
-- **E3. `/scores`** — week selector + grid of `MatchupCard`s (winner highlighted).
-- **E4. `/recap`** — week selector; award badges, top scorer, biggest upset, closest finish,
+- [x] **E2. `/rankings`** — Elo power table (rank, team, rating, movement vs last week) + `EloLineChart`.
+- [x] **E3. `/scores`** — week selector + grid of `MatchupCard`s (winner highlighted).
+- [x] **E4. `/recap`** — week selector; award badges, top scorer, biggest upset, closest finish,
   `LuckMeter` per team (sorted luckiest→unluckiest).
-- **E5. `/trends`** — league `PointsTrend`, per-team trend toggle, streak list, head-to-head matrix.
-- **E6. `/predict`** — matchups with `WinProbBar`s (predicted vs actual; see §6 nuance).
-- **E7. `/teams` + `/teams/[id]`** — responsive grid of `TeamCard`s; detail page: record, rating,
+- [x] **E5. `/trends`** — league `PointsTrend`, per-team trend toggle, streak list, head-to-head matrix.
+- [x] **E6. `/predict`** — matchups with `WinProbBar`s (predicted vs actual; see §6 nuance).
+- [x] **E7. `/teams` + `/teams/[id]`** — responsive grid of `TeamCard`s; detail page: record, rating,
   SOS rank, playoff odds, season points chart, roster (latest week).
   - *Accept (E1–E7):* each page renders real data from the DB, is responsive, and matches the design.
 
 ### Group F — Extra pages (4)
-- **F1. `/playoffs`** — standings table with in/out cut line (top 6), odds bars, bracket (weeks 15–17).
-- **F2. `/players`** — week selector + top performers table; season leaders by position.
-- **F3. `/transactions`** — chronological feed (ADD/DROP chips, player, team, bid, date).
-- **F4. `/records`** — grouped record cards (single-game high/low, biggest win, top player game,
+- [x] **F1. `/playoffs`** — standings table with in/out cut line (top 6), odds bars, bracket (weeks 15–17).
+- [x] **F2. `/players`** — week selector + top performers table; season leaders by position.
+- [x] **F3. `/transactions`** — chronological feed (ADD/DROP chips, player, team, bid, date).
+- [x] **F4. `/records`** — grouped record cards (single-game high/low, biggest win, top player game,
   best season, longest streak) — "Hall of Fame" styling.
   - *Accept (F1–F4):* render real data, responsive, on-brand.
 
 ### Group G — Polish & verification
-- **G1.** Empty states, loading `skeleton`s, error boundary for missing DB, mobile responsive pass.
-- **G2.** `pnpm lint` clean and `pnpm build` succeeds (typecheck passes).
-- **G3.** Visual QA over all 10 pages against the sample DB (no overflow, consistent spacing, motion smooth).
-- **G4.** Add `Dockerfile`/`docker-compose.yml` + a short "deploy & weekly cron" note in README
-  (cron runs `python -m fantasynfl ingest` weekly; Next reads the refreshed DB).
-- **G5.** *(When creds available)* run `python -m fantasynfl ingest`, reload the app, confirm pages
+- [x] **G1.** Empty states, loading `skeleton`s, error boundary for missing DB, mobile responsive pass.
+- [x] **G2.** `pnpm lint` clean and `pnpm build` succeeds (typecheck passes).
+- [x] **G3.** Visual QA over all 10 pages against the sample DB (no overflow, consistent spacing, motion smooth).
+- [x] **G4.** Add `Dockerfile`/`docker-compose.yml` + a short "deploy & weekly cron" note in README
+  (cron runs `python -m fantasynfl ingest` weekly; Next reads the refreshed DB). *(See `DEPLOY.md`.)*
+- [!] **G5.** *(When creds available)* run `python -m fantasynfl ingest`, reload the app, confirm pages
   still render with real data.
 
 ### Suggested order & dependencies
@@ -316,13 +317,15 @@ B/C/D are prerequisites for E/F. Within E and F, pages are independent and paral
 
 ---
 
-## 8. Definition of done (whole feature)
+## 8. Definition of done (whole feature) — MET
 
 - `pnpm lint` and `pnpm build` pass with zero errors.
 - All 10 pages render real data from `data/fantasynfl.db`, are responsive, and follow the design system.
 - No DB access in client components; no `any`; named exports only.
 - README updated with web run instructions.
-- (Stretch) Docker + cron docs added.
+- (Stretch) Docker + cron docs added. *(Done — `Dockerfile`, `docker-compose.yml`, `DEPLOY.md`.)*
+
+> Only A3/G5 remain, both gated on real ESPN credentials.
 
 ## 9. Risks / things to watch
 - **`better-sqlite3` bundling** — must be in `serverExternalPackages`; import only server-side.

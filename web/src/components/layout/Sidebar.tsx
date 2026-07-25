@@ -14,6 +14,7 @@ import {
   Star,
   ArrowLeftRight,
   Medal,
+  Crosshair,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/trends", label: "Trends", icon: TrendingUp },
   { href: "/predict", label: "Predict", icon: Brain },
   { href: "/teams", label: "Teams", icon: Users },
+  { href: "/rivalry", label: "Rivalry", icon: Crosshair },
   { href: "/playoffs", label: "Playoffs", icon: Swords },
   { href: "/players", label: "Players", icon: Star },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },

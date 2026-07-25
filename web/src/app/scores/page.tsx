@@ -6,8 +6,10 @@ import {
   getLatestSeasonId,
   getMatchups,
   getMaxWeek,
+  getWeekRosters,
   getWeeks,
 } from "@/lib/queries";
+import type { WeekRosterRow } from "@/lib/types";
 
 interface ScoresPageProps {
   searchParams: Promise<{ week?: string }>;
@@ -22,6 +24,13 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
 
   const matchups = getMatchups(seasonId, weekNum);
   const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
+
+  const rostersByTeam = new Map<number, WeekRosterRow[]>();
+  for (const row of getWeekRosters(seasonId, weekNum)) {
+    const list = rostersByTeam.get(row.team_id) ?? [];
+    list.push(row);
+    rostersByTeam.set(row.team_id, list);
+  }
 
   return (
     <div className="space-y-6">
@@ -41,7 +50,13 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
         <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>
           {matchups.map((m) => (
             <StaggerItem key={m.id}>
-              <MatchupCard matchup={m} />
+              <MatchupCard
+                matchup={m}
+                rosters={{
+                  home: rostersByTeam.get(m.hid) ?? [],
+                  away: rostersByTeam.get(m.aid) ?? [],
+                }}
+              />
             </StaggerItem>
           ))}
         </Stagger>

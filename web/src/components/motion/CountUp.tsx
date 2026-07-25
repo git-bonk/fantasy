@@ -26,11 +26,7 @@ export function CountUp({
   const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    if (prefersReduced) {
-      setDisplay(value);
-      return;
-    }
-    if (!isInView) return;
+    if (prefersReduced || !isInView) return;
 
     let raf: number;
     const start = performance.now();
@@ -47,10 +43,12 @@ export function CountUp({
     return () => cancelAnimationFrame(raf);
   }, [isInView, value, duration, prefersReduced]);
 
+  const shown = prefersReduced ? value : display;
+
   return (
     <span ref={ref} className={className}>
       {prefix}
-      {display.toFixed(decimals)}
+      {shown.toFixed(decimals)}
       {suffix}
     </span>
   );

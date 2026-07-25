@@ -258,6 +258,10 @@ export interface TeamRosterRow {
   points: number;
 }
 
+export interface WeekRosterRow extends TeamRosterRow {
+  team_id: number;
+}
+
 export interface TeamPointsWeekRow {
   week_num: number;
   points: number;
@@ -283,4 +287,59 @@ export interface PredictMatchupRow {
   aabb: string;
   acolor: string;
   a_elo: number | null;
+}
+
+export type MatchupTag =
+  | "UPSET"
+  | "NAIL_BITER"
+  | "BLOWOUT"
+  | "STATEMENT"
+  | "REVENGE"
+  | "BUST"
+  | "SHOOTOUT";
+
+export interface RecapMatchupRow extends MatchupRow {
+  tag: MatchupTag | null;
+}
+
+export interface SeasonMatchupRow {
+  week_num: number;
+  home_team_id: number;
+  away_team_id: number;
+  winner_team_id: number | null;
+}
+
+export interface EloAtWeekRow {
+  team_id: number;
+  rating: number;
+}
+
+export interface ShameItem {
+  kind: "BIGGEST_LOSS" | "LOWEST_SCORE" | "LONGEST_LOSING_STREAK" | "UNLUCKIEST" | "CHEAPEST_WIN";
+  label: string;
+  headline: string;
+  value: number;
+  suffix: string;
+  teamId: number | null;
+  teamName: string;
+  abbrev: string;
+  color: string;
+  detail: string;
+}
+
+export interface RivalryGameRow {
+  id: number;
+  week_num: number;
+  label: string;
+  is_playoff: number;
+  home_team_id: number;
+  away_team_id: number;
+  home_score: number;
+  away_score: number;
+  winner_team_id: number | null;
+}
+
+export interface TeamStreak {
+  streak: number;
+  type: "W" | "L";
 }

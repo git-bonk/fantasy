@@ -55,6 +55,8 @@ The whole stack runs as two containers that share a `league-data` volume holding
 `fantasynfl.db`:
 
 - **`web`** — the Next.js dashboard (reads the DB read-only via `DB_PATH`).
+  The build stage installs `python3`, `make`, and `g++` to compile the native
+  `better-sqlite3` module; these are discarded before the final slim image.
 - **`pipeline`** — a `cron` daemon that refreshes the DB from ESPN **weekly**
   (Mondays 06:00) by running `fantasynfl ingest`. On first boot, if no DB exists,
   it seeds a sample season so the dashboard has data immediately.

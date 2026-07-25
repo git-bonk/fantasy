@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
+
+const subscribeNoop = () => () => {};
+
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
+}
 
 interface RevealProps {
   children: ReactNode;
@@ -12,12 +22,8 @@ interface RevealProps {
 }
 
 export function Reveal({ children, delay = 0, y = 16, className }: RevealProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   if (mounted && reduce) {
     return <div className={className}>{children}</div>;
@@ -43,12 +49,8 @@ interface StaggerProps {
 }
 
 export function Stagger({ children, className, stagger = 0.06 }: StaggerProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   if (mounted && reduce) {
     return <div className={className}>{children}</div>;
@@ -85,12 +87,8 @@ interface StaggerItemProps {
 }
 
 export function StaggerItem({ children, className }: StaggerItemProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   if (mounted && reduce) {
     return <div className={className}>{children}</div>;
@@ -110,12 +108,8 @@ interface AnimatedRowProps {
 }
 
 export function AnimatedRow({ children, className, delay = 0 }: AnimatedRowProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const reduce = useReducedMotion();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   if (mounted && reduce) {
     return <tr className={className}>{children}</tr>;

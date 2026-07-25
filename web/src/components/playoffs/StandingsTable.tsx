@@ -10,14 +10,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { OddsBar } from "./OddsBar";
-import type { PlayoffStandingRow } from "@/lib/types";
+import { StreakBadge } from "@/components/cards/StreakBadge";
+import type { PlayoffStandingRow, TeamStreak } from "@/lib/types";
 
 interface StandingsTableProps {
   standings: PlayoffStandingRow[];
   playoffTeams: number;
+  streaks?: Map<number, TeamStreak>;
 }
 
-export function StandingsTable({ standings, playoffTeams }: StandingsTableProps) {
+export function StandingsTable({ standings, playoffTeams, streaks }: StandingsTableProps) {
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
       <Table>
@@ -36,6 +38,7 @@ export function StandingsTable({ standings, playoffTeams }: StandingsTableProps)
           {standings.map((team, i) => {
             const inPlayoffs = team.playoff_seed != null;
             const isCutLine = i === playoffTeams - 1;
+            const streak = streaks?.get(team.id);
             return (
               <TableRow
                 key={team.id}
@@ -65,6 +68,7 @@ export function StandingsTable({ standings, playoffTeams }: StandingsTableProps)
                       {team.abbrev}
                     </span>
                     <span className="truncate text-sm font-medium">{team.name}</span>
+                    {streak && <StreakBadge streak={streak.streak} type={streak.type} />}
                   </Link>
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">

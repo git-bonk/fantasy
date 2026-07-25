@@ -9,6 +9,9 @@ WORKDIR /app
 
 # ---- dependencies ----
 FROM base AS deps
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 COPY package.json pnpm-lock.yaml ./
 COPY pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

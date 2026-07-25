@@ -30,3 +30,13 @@ data/*.db-shm
 # Logs & misc
 *.log
 .DS_Store
+
+# Deployment (host-specific overrides & tunnel credentials)
+docker-compose.override.yml
+.cloudflared/
+cloudflared-*.json
+cloudflared.deb
+
+# TLS material (never commit private keys/certs)
+*.pem
+*.key

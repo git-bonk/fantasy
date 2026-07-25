@@ -1,5 +1,6 @@
-import { getRecords } from "@/lib/queries";
+import { getLatestSeasonId, getRecords, getShameData } from "@/lib/queries";
 import { RecordCategory } from "@/components/records/RecordCategory";
+import { ShameCorner } from "@/components/records/ShameCorner";
 import { Reveal } from "@/components/motion/Reveal";
 import type { RecordRow } from "@/lib/types";
 
@@ -28,6 +29,7 @@ function groupByCategory(records: RecordRow[]): { category: string; rows: Record
 }
 
 export default function RecordsPage() {
+  const seasonId = getLatestSeasonId();
   const records = getRecords();
   const groups = groupByCategory(records);
 
@@ -51,6 +53,8 @@ export default function RecordsPage() {
           </Reveal>
         ))}
       </div>
+
+      <ShameCorner items={getShameData(seasonId)} />
     </div>
   );
 }

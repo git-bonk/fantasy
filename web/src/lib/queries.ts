@@ -1,6 +1,7 @@
 import { db } from "./db";
 import type {
   BracketGameRow,
+  EloAtWeekRow,
   EloHistoryRow,
   LuckRow,
   MatchupRow,
@@ -11,8 +12,11 @@ import type {
   RankingRow,
   RecapAwardRow,
   RecordRow,
+  RivalryGameRow,
   Season,
   SeasonLeaderRow,
+  SeasonMatchupRow,
+  ShameItem,
   SosRow,
   Team,
   TeamPointsWeekRow,
@@ -22,6 +26,7 @@ import type {
   TransactionRow,
   TrendRow,
   Week,
+  WeekRosterRow,
 } from "./types";
 
 const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
@@ -199,6 +204,17 @@ export function getTeamRoster(seasonId: number, teamId: number): TeamRosterRow[]
     .all(seasonId, teamId, seasonId) as TeamRosterRow[];
 }
 
+export function getWeekRosters(seasonId: number, weekNum: number): WeekRosterRow[] {
+  return db
+    .prepare(
+      `SELECT r.team_id, r.player_name, r.position, r.nfl_team, r.lineup_slot, r.points
+       FROM rosters r JOIN weeks w ON w.id = r.week_id
+       WHERE w.season_id = ? AND w.week_num = ?
+       ORDER BY r.team_id, r.lineup_slot = 'BN', r.points DESC`
+    )
+    .all(seasonId, weekNum) as WeekRosterRow[];
+}
+
 export function getTeamPointsByWeek(seasonId: number, teamId: number): TeamPointsWeekRow[] {
   return db
     .prepare(
@@ -334,6 +350,37 @@ export function getPredictData(seasonId: number, weekNum: number): PredictMatchu
     .all(seasonId, weekNum, seasonId, weekNum, seasonId, weekNum) as PredictMatchupRow[];
 }
 
+export function getSeasonMatchups(seasonId: number): SeasonMatchupRow[] {
+  return db
+    .prepare(
+      `SELECT w.week_num, m.home_team_id, m.away_team_id, m.winner_team_id
+       FROM matchups m JOIN weeks w ON w.id = m.week_id
+       WHERE w.season_id = ? AND w.is_playoff = 0
+       ORDER BY w.week_num`
+    )
+    .all(seasonId) as SeasonMatchupRow[];
+}
+
+export function getEloAtWeek(seasonId: number, weekNum: number): EloAtWeekRow[] {
+  return db
+    .prepare("SELECT team_id, rating FROM elo_ratings WHERE season_id = ? AND week_num = ?")
+    .all(seasonId, weekNum) as EloAtWeekRow[];
+}
+
+export function getRivalryGames(seasonId: number, a: number, b: number): RivalryGameRow[] {
+  return db
+    .prepare(
+      `SELECT m.id, w.week_num, w.label, w.is_playoff,
+              m.home_team_id, m.away_team_id, m.home_score, m.away_score, m.winner_team_id
+       FROM matchups m JOIN weeks w ON w.id = m.week_id
+       WHERE w.season_id = ?
+         AND ((m.home_team_id = ? AND m.away_team_id = ?)
+           OR (m.home_team_id = ? AND m.away_team_id = ?))
+       ORDER BY w.week_num`
+    )
+    .all(seasonId, a, b, b, a) as RivalryGameRow[];
+}
+
 export function getStreaks(seasonId: number) {
   const matchups = db
     .prepare(
@@ -433,4 +480,188 @@ export function getHeadToHead(seasonId: number) {
   }
 
   return { teams, matrix };
+}
+
+interface ShameMatchupRow {
+  id: number;
+  week_num: number;
+  home_team_id: number;
+  away_team_id: number;
+  home_score: number;
+  away_score: number;
+  winner_team_id: number | null;
+  hname: string;
+  habb: string;
+  hcolor: string;
+  aname: string;
+  aabb: string;
+  acolor: string;
+}
+
+export function getShameData(seasonId: number): ShameItem[] {
+  const matchups = db
+    .prepare(
+      `SELECT m.id, w.week_num, m.home_team_id, m.away_team_id, m.home_score, m.away_score,
+              m.winner_team_id, th.name hname, th.abbrev habb, th.color hcolor,
+              ta.name aname, ta.abbrev aabb, ta.color acolor
+       FROM matchups m JOIN weeks w ON w.id = m.week_id
+       JOIN teams th ON th.id = m.home_team_id
+       JOIN teams ta ON ta.id = m.away_team_id
+       WHERE w.season_id = ?
+       ORDER BY w.week_num`
+    )
+    .all(seasonId) as ShameMatchupRow[];
+
+  if (matchups.length === 0) return [];
+
+  const teamInfo = new Map<number, { name: string; abbrev: string; color: string }>();
+  for (const m of matchups) {
+    teamInfo.set(m.home_team_id, { name: m.hname, abbrev: m.habb, color: m.hcolor });
+    teamInfo.set(m.away_team_id, { name: m.aname, abbrev: m.aabb, color: m.acolor });
+  }
+
+  const items: ShameItem[] = [];
+
+  let biggestLoss: { margin: number; teamId: number; week: number; oppName: string } | null = null;
+  let lowestScore: { score: number; teamId: number; week: number } | null = null;
+  let cheapestWin: { score: number; teamId: number; week: number; oppName: string } | null = null;
+
+  for (const m of matchups) {
+    const sides = [
+      {
+        teamId: m.home_team_id,
+        score: m.home_score,
+        oppName: m.aname,
+        oppScore: m.away_score,
+      },
+      {
+        teamId: m.away_team_id,
+        score: m.away_score,
+        oppName: m.hname,
+        oppScore: m.home_score,
+      },
+    ];
+
+    for (const s of sides) {
+      const lossMargin = s.oppScore - s.score;
+      if (lossMargin > 0 && (!biggestLoss || lossMargin > biggestLoss.margin)) {
+        biggestLoss = { margin: lossMargin, teamId: s.teamId, week: m.week_num, oppName: s.oppName };
+      }
+      if (!lowestScore || s.score < lowestScore.score) {
+        lowestScore = { score: s.score, teamId: s.teamId, week: m.week_num };
+      }
+      if (m.winner_team_id === s.teamId && (!cheapestWin || s.score < cheapestWin.score)) {
+        cheapestWin = { score: s.score, teamId: s.teamId, week: m.week_num, oppName: s.oppName };
+      }
+    }
+  }
+
+  if (biggestLoss) {
+    const t = teamInfo.get(biggestLoss.teamId);
+    items.push({
+      kind: "BIGGEST_LOSS",
+      label: "Biggest Loss",
+      headline: `${t?.name ?? "Unknown"} lost by ${biggestLoss.margin.toFixed(1)}`,
+      value: biggestLoss.margin,
+      suffix: "pt loss",
+      teamId: biggestLoss.teamId,
+      teamName: t?.name ?? "Unknown",
+      abbrev: t?.abbrev ?? "—",
+      color: t?.color ?? "#888",
+      detail: `Week ${biggestLoss.week} vs ${biggestLoss.oppName}`,
+    });
+  }
+
+  if (lowestScore) {
+    const t = teamInfo.get(lowestScore.teamId);
+    items.push({
+      kind: "LOWEST_SCORE",
+      label: "Lowest Score",
+      headline: `${t?.name ?? "Unknown"} managed just ${lowestScore.score.toFixed(1)} pts`,
+      value: lowestScore.score,
+      suffix: "pts",
+      teamId: lowestScore.teamId,
+      teamName: t?.name ?? "Unknown",
+      abbrev: t?.abbrev ?? "—",
+      color: t?.color ?? "#888",
+      detail: `Week ${lowestScore.week}`,
+    });
+  }
+
+  let longestSkid: { len: number; teamId: number } | null = null;
+  for (const tid of teamInfo.keys()) {
+    const games = matchups.filter((m) => m.home_team_id === tid || m.away_team_id === tid);
+    let current = 0;
+    let best = 0;
+    for (const g of games) {
+      if (g.winner_team_id === null) {
+        current = 0;
+        continue;
+      }
+      if (g.winner_team_id !== tid) {
+        current++;
+        best = Math.max(best, current);
+      } else {
+        current = 0;
+      }
+    }
+    if (best > 0 && (!longestSkid || best > longestSkid.len)) {
+      longestSkid = { len: best, teamId: tid };
+    }
+  }
+
+  if (longestSkid) {
+    const t = teamInfo.get(longestSkid.teamId);
+    items.push({
+      kind: "LONGEST_LOSING_STREAK",
+      label: "Longest Losing Streak",
+      headline: `${t?.name ?? "Unknown"} lost ${longestSkid.len} straight`,
+      value: longestSkid.len,
+      suffix: "straight",
+      teamId: longestSkid.teamId,
+      teamName: t?.name ?? "Unknown",
+      abbrev: t?.abbrev ?? "—",
+      color: t?.color ?? "#888",
+      detail: "the league's longest skid",
+    });
+  }
+
+  const luck = getRecapLuck(seasonId, getMaxRegularWeek(seasonId));
+  const unluckiest = luck.reduce<LuckRow | null>(
+    (min, l) => (min === null || l.luck_score < min.luck_score ? l : min),
+    null
+  );
+  if (unluckiest && unluckiest.luck_score < 0) {
+    const robbed = Math.abs(unluckiest.luck_score);
+    items.push({
+      kind: "UNLUCKIEST",
+      label: "Unluckiest",
+      headline: `${unluckiest.name} was robbed ${robbed.toFixed(1)} wins`,
+      value: robbed,
+      suffix: "wins robbed",
+      teamId: unluckiest.id,
+      teamName: unluckiest.name,
+      abbrev: teamInfo.get(unluckiest.id)?.abbrev ?? "—",
+      color: unluckiest.color,
+      detail: `expected ${unluckiest.expected_wins.toFixed(1)} wins, got ${unluckiest.actual_wins.toFixed(1)}`,
+    });
+  }
+
+  if (cheapestWin) {
+    const t = teamInfo.get(cheapestWin.teamId);
+    items.push({
+      kind: "CHEAPEST_WIN",
+      label: "Cheapest Win",
+      headline: `${t?.name ?? "Unknown"} won with just ${cheapestWin.score.toFixed(1)} pts`,
+      value: cheapestWin.score,
+      suffix: "pts",
+      teamId: cheapestWin.teamId,
+      teamName: t?.name ?? "Unknown",
+      abbrev: t?.abbrev ?? "—",
+      color: t?.color ?? "#888",
+      detail: `Week ${cheapestWin.week} vs ${cheapestWin.oppName}`,
+    });
+  }
+
+  return items;
 }
