@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+build/
+*.tsbuildinfo
+
+# Data (generated)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Logs & misc
+*.log
+.DS_Store
