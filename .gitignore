@@ -42,4 +42,7 @@ cloudflared.deb
 *.key
 
 # Working docs (kept locally, not tracked)
-CHANGELOG.md
+docs/
+
+# graphify code-graph output (generated)
+graphify-out/
