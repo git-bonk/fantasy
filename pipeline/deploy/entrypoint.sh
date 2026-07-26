@@ -3,7 +3,7 @@ set -e
 
 # cron does not inherit the container environment, so persist the variables the
 # ingest job needs into a file that the crontab sources before each run.
-env | grep -E '^(ESPN_LEAGUE_ID|ESPN_S2|SWID|SEASONS|DB_PATH|INGEST_ENABLED)=' > /etc/fantasynfl.env || true
+env | grep -E '^(ESPN_LEAGUE_ID|ESPN_S2|SWID|SEASONS|DB_PATH|INGEST_ENABLED|OVERRIDES_PATH)=' > /etc/fantasynfl.env || true
 chmod 600 /etc/fantasynfl.env
 
 DB="${DB_PATH:-/data/fantasynfl.db}"

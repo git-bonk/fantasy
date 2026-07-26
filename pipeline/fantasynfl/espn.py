@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from .models import Matchup, Owner, RosterPlayer, Team, Transaction, WeekInfo, WeekRoster
+from .overrides import apply_override
 
 log = logging.getLogger("fantasynfl.espn")
 
@@ -43,8 +44,10 @@ def _owner_from_member(member: dict[str, Any]) -> Owner:
         display = " ".join(part for part in (first, last) if part)
     if not display:
         display = str(raw_id) if raw_id is not None else "Unknown"
+    owner_id = str(raw_id) if raw_id is not None else ""
+    display = apply_override(owner_id, display)
     return Owner(
-        owner_id=str(raw_id) if raw_id is not None else "",
+        owner_id=owner_id,
         display_name=display,
         first_name=first,
         last_name=last,

@@ -21,8 +21,13 @@ services:
         required: false
     environment:
       DB_PATH: /data/fantasynfl.db
+      OVERRIDES_PATH: /data/overrides.json
     volumes:
       - league-data:/data
+      - type: bind
+        source: ./overrides.json
+        target: /data/overrides.json
+        read_only: true
     healthcheck:
       test: ["CMD-SHELL", "test -f /data/fantasynfl.db || exit 1"]
       interval: 5s

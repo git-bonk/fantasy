@@ -26,6 +26,7 @@ data/*.db-shm
 .env
 .env.local
 .env.*.local
+overrides.json
 
 # Logs & misc
 *.log
