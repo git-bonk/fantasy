@@ -1,4 +1,5 @@
-import { getLatestSeasonId, getRecords, getShameData } from "@/lib/queries";
+import { getRecords, getShameData } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { RecordCategory } from "@/components/records/RecordCategory";
 import { ShameCorner } from "@/components/records/ShameCorner";
 import { Reveal } from "@/components/motion/Reveal";
@@ -28,8 +29,13 @@ function groupByCategory(records: RecordRow[]): { category: string; rows: Record
   }));
 }
 
-export default function RecordsPage() {
-  const seasonId = getLatestSeasonId();
+export default async function RecordsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; week?: string }>;
+}) {
+  const ctx = await resolveSeason(searchParams);
+  const seasonId = ctx.seasonId;
   const records = getRecords();
   const groups = groupByCategory(records);
 

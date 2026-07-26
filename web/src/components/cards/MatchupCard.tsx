@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { MatchupTagBadge } from "@/components/cards/MatchupTagBadge";
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
+import { useMediaQuery } from "@/lib/use-media-query";
 import type { MatchupRow, MatchupTag, WeekRosterRow } from "@/lib/types";
 
 interface TeamSideProps {
@@ -168,10 +169,11 @@ interface MatchupCardProps {
   matchup: MatchupRow;
   tag?: MatchupTag | null;
   rosters?: MatchupRosters | null;
+  autoOpenOnDesktop?: boolean;
   className?: string;
 }
 
-export function MatchupCard({ matchup, tag, rosters, className }: MatchupCardProps) {
+export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, className }: MatchupCardProps) {
   const m = matchup;
   const isTie = m.winner_team_id === null;
   const awayWins = !isTie && m.winner_team_id === m.aid;
@@ -179,7 +181,9 @@ export function MatchupCard({ matchup, tag, rosters, className }: MatchupCardPro
   const expandable = Boolean(rosters);
   const homeRoster = rosters?.home ?? [];
   const awayRoster = rosters?.away ?? [];
-  const [open, setOpen] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1280px)");
+  const [userOpen, setUserOpen] = useState<boolean | null>(null);
+  const open = userOpen ?? (autoOpenOnDesktop && isDesktop);
   const reduce = useReducedMotion();
 
   const sides = (
@@ -224,7 +228,7 @@ export function MatchupCard({ matchup, tag, rosters, className }: MatchupCardPro
         {expandable ? (
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => setUserOpen(!open)}
             aria-expanded={open}
             className="group w-full cursor-pointer space-y-1 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
           >

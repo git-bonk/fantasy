@@ -3,13 +3,14 @@ import { PageHeader } from "@/components/PageHeader";
 import { RivalryPicker } from "@/components/rivalry/RivalryPicker";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
-import { getLatestSeasonId, getRivalryGames, getTeam, getTeams } from "@/lib/queries";
+import { getRivalryGames, getTeam, getTeams } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { fmtPts } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Team } from "@/lib/types";
 
 interface RivalryPageProps {
-  searchParams: Promise<{ a?: string; b?: string }>;
+  searchParams: Promise<{ year?: string; week?: string; a?: string; b?: string }>;
 }
 
 function TeamLockup({ team, flip }: { team: Team; flip?: boolean }) {
@@ -46,7 +47,8 @@ function StatChip({ label, children }: StatChipProps) {
 }
 
 export default async function RivalryPage({ searchParams }: RivalryPageProps) {
-  const seasonId = getLatestSeasonId();
+  const ctx = await resolveSeason(searchParams);
+  const seasonId = ctx.seasonId;
   const teams = getTeams(seasonId);
   const validIds = teams.map((t) => t.id);
 

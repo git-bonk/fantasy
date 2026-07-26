@@ -1,6 +1,10 @@
+export const dynamic = "force-dynamic";
+
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Space_Grotesk, Manrope, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SeasonProvider } from "@/lib/season-context";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import "./globals.css";
@@ -37,13 +41,17 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-background text-foreground font-body">
         <TooltipProvider>
-          <Sidebar />
-          <div className="md:pl-56">
-            <Topbar />
-            <main className="min-h-[calc(100vh-3.5rem)] p-4 pb-20 md:p-6 md:pb-6">
-              {children}
-            </main>
-          </div>
+          <Suspense fallback={null}>
+            <SeasonProvider>
+              <Sidebar />
+              <div className="md:pl-56">
+                <Topbar />
+                <main className="min-h-[calc(100vh-3.5rem)] p-4 pb-20 md:p-6 md:pb-6">
+                  {children}
+                </main>
+              </div>
+            </SeasonProvider>
+          </Suspense>
         </TooltipProvider>
       </body>
     </html>

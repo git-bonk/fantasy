@@ -1,5 +1,6 @@
 import { Crown } from "lucide-react";
-import { getLatestSeasonId, getMaxRegularWeek, getWeeks, getPlayoffStandings, getPlayoffBracket, getSeasons, getStreaks } from "@/lib/queries";
+import { getMaxRegularWeek, getPlayoffStandings, getPlayoffBracket, getSeasons, getStreaks } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
 import { Bracket } from "@/components/playoffs/Bracket";
 import { WeekSelector } from "@/components/WeekSelector";
@@ -34,13 +35,13 @@ function findChampion(games: BracketGameRow[]) {
 export default async function PlayoffsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ year?: string; week?: string }>;
 }) {
-  const { week: weekParam } = await searchParams;
-  const seasonId = getLatestSeasonId();
-  const weeks = getWeeks(seasonId);
+  const ctx = await resolveSeason(searchParams);
+  const seasonId = ctx.seasonId;
+  const weeks = ctx.weeks;
   const maxRegular = getMaxRegularWeek(seasonId);
-  const week = Math.min(Math.max(Number(weekParam) || maxRegular, 1), maxRegular);
+  const week = Math.min(Math.max(ctx.weekNum || maxRegular, 1), maxRegular);
 
   const standings = getPlayoffStandings(seasonId, week);
   const bracket = getPlayoffBracket(seasonId);

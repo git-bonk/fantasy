@@ -7,15 +7,20 @@ import { TeamPointsChart } from "@/components/charts/TeamPointsChart";
 import { Reveal } from "@/components/motion/Reveal";
 import {
   getHeadToHead,
-  getLatestSeasonId,
   getLeagueTrend,
   getStreaks,
   getTeamTrends,
 } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { cn } from "@/lib/utils";
 
-export default function TrendsPage() {
-  const seasonId = getLatestSeasonId();
+export default async function TrendsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; week?: string }>;
+}) {
+  const ctx = await resolveSeason(searchParams);
+  const seasonId = ctx.seasonId;
   const leagueTrend = getLeagueTrend(seasonId);
   const teamTrends = getTeamTrends(seasonId);
   const streaks = getStreaks(seasonId);

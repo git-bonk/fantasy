@@ -9,82 +9,92 @@ The pipeline and the web app communicate **only through the SQLite schema**. The
 
 ```
 ESPN Fantasy API ──► pipeline/ (Python) ──► data/fantasynfl.db (SQLite) ──► web/ (Next.js) ──► browser
-                     fetch OR sample          raw + precomputed tables        10 pages, dark UI
+                     fetch OR sample          raw + precomputed tables        12 pages, dark UI
 ```
 
 ## Repo layout
 
 ```
 fantasynfl/
-├── README.md  PLAN.md  AGENTS.md  ARCHITECTURE.md  DEPLOY.md
-├── TASKS.md  TASKS-FEATURES.md  .gitignore  .env.example
-├── Dockerfile  docker-compose.yml
-├── data/fantasynfl.db            # generated SQLite (gitignored)
-├── pipeline/                     # PYTHON — DONE
+├── pipeline/                     # PYTHON
 │   ├── pyproject.toml            # deps: espn_api, python-dotenv · dev: pytest, ruff
+│   ├── deploy/                   # crontab + entrypoint.sh (Docker cron setup)
 │   ├── fantasynfl/
 │   │   ├── config.py             # env (.env) loading, DB path resolution
 │   │   ├── models.py             # SeasonData + Team/Matchup/RosterPlayer/... dataclasses
 │   │   ├── db.py                 # SQLite schema DDL + connect() + store_season()  ← SCHEMA SOURCE OF TRUTH
 │   │   ├── sample.py             # synthetic 12-team season generator
-│   │   ├── espn.py               # espn_api wrapper → SeasonData (needs creds; unverified live — A3)
+│   │   ├── espn.py               # espn_api wrapper → SeasonData (private-league cookie auth)
 │   │   ├── ingest.py             # build → store → compute
 │   │   ├── cli.py / __main__.py  # `python -m fantasynfl {sample|ingest|compute}`
-│   │   └── compute/              # elo, luck, predict, awards, sos, playoffs, records, __init__
-│   └── tests/                    # pytest (26 tests)
-└── web/                          # NEXT.JS — DONE (10 pages; see TASKS.md)
-    └── src/{app,components,lib}
+│   │   └── compute/              # elo, owner_elo, luck, predict, awards, sos, playoffs, records
+│   └── tests/                    # pytest (37 tests)
+└── web/                          # NEXT.JS (12 pages)
+    └── src/
+        ├── app/                  # pages: /, rankings, all-time, all-time/[ownerId], scores,
+        │                         #   recap, trends, predict, teams, teams/[id], history,
+        │                         #   playoffs, players, transactions, records, rivalry
+        ├── components/           # charts, cards, layout, motion, ui (shadcn)
+        └── lib/                  # db.ts, queries.ts, types.ts, format.ts, recap.ts,
+                                  #   resolve-season.ts, season-context.tsx, use-media-query.ts
 ```
 
 ## Data contract (SQLite)
 
-Defined in `pipeline/fantasynfl/db.py`. **Raw** tables (written on ingest): `seasons`, `teams`,
-`weeks`, `matchups`, `rosters`, `transactions`. **Precomputed** tables (written by compute):
-`elo_ratings`, `luck`, `awards`, `sos`, `playoff_snapshots`, `records`.
+Defined in `pipeline/fantasynfl/db.py`.
+
+**Raw tables** (written on ingest): `seasons`, `owners`, `teams`, `weeks`, `matchups`,
+`rosters`, `transactions`. `teams.owner_id` references `owners(id)` (nullable — an ownerless
+team has `NULL`).
+
+**Precomputed tables** (written by compute): `elo_ratings`, `owner_elo`, `luck`, `awards`,
+`sos`, `playoff_snapshots`, `records`
+
+**Two rating tiers:**
+- `elo_ratings` — per-**team**, per-season power rating (resets each season). Drives
+  "Season Power Rankings" (`/rankings`).
+- `owner_elo` — per-**owner** running Elo that carries across seasons (keyed by ESPN member
+  id via `owners`). Drives "All-Time Rankings" (`/all-time`).
 
 **Invariant:** a team's matchup score == sum of its STARTER roster points that week
 (starter slots: `QB, RB, WR, TE, FLEX, K, DEF`; bench = `BN`).
 
-See `TASKS.md §Quick Reference` for the full column-by-column schema.
-
-## Pipeline (Python) — how it works
+## Pipeline
 
 1. **Source → `SeasonData`.** Either `sample.py` (synthetic) or `espn.py` (real ESPN via
-   `espn_api`, private-league cookie auth) produces a `SeasonData` (teams, weeks, matchups,
-   rosters, transactions, settings). The two are interchangeable.
-2. **Store.** `db.store_season()` writes raw rows (idempotent — clears the season first).
-3. **Compute.** `compute.compute_all()` runs every module and writes precomputed tables.
+   `espn_api`, private-league cookie auth) produces a `SeasonData`. The two are interchangeable.
+2. **Store.** `db.store_season()` writes raw rows (idempotent — clears the season first),
+   including `owners` and each team's `owner_id`.
+3. **Compute.** `compute.compute_all()` runs the per-season modules and writes their
+   precomputed tables. After all seasons are computed, `compute_owner_elo_all()` runs a
+   separate **cross-season** pass (seasons in year order) to write `owner_elo`, since
+   carryover needs prior seasons committed first.
 
 ### Compute algorithms
-- **Elo** (`elo.py`): 538-style margin-of-victory Elo. Start 1500, K=32,
+
+- **Elo (per-team power rating)** — 538-style margin-of-victory. Start 1500, K=32,
   `expected = 1/(1+10^((opp−self)/400))`, MOV multiplier `ln(|margin|+1)·2.2/((winner_elo_diff·0.001)+2.2)`.
-  Snapshot per team per week (rating *after* that week).
-- **Luck** (`luck.py`): per team-week, `expected = fraction of the other 11 teams you outscored`;
-  summed → expected wins. `luck = actual_wins − expected_wins`. +ve = lucky, −ve = unlucky.
-- **Predict** (`predict.py`): `P(win) = 1/(1+10^((opp_elo−elo)/400))`.
-- **Awards** (`awards.py`): per week — TOP_SCORE, BIGGEST_BUST, CLOSEST_FINISH, BIGGEST_UPSET
-  (winner with biggest pre-game Elo deficit), LUCKIEST (winner with lowest outscored-fraction),
-  TOP_PLAYER (highest individual points).
-- **SOS** (`sos.py`): cumulative average points scored by opponents faced; ranked 1 (hardest)…12.
-- **Playoffs** (`playoffs.py`): standings (W/L/T, PF/PA), seeding by (wins, ties, PF), and
-  Monte-Carlo playoff odds (2000 sims of remaining regular-season games using Elo win probs).
-- **Records** (`records.py`): cross-season extremes — single-game high/low, biggest win, top
-  player game, best season, longest streak. Top 5 per category.
+  Snapshot per team per week. Resets each season.
+- **Owner Elo (running, cross-season)** — same formula keyed by **owner** (via a
+  `team_id → owner_id` map). Carries across seasons: each owner's season seed regresses
+  toward 1500 — `1500 + 0.75·(prev_season_final − 1500)`; new owners start at 1500.
+- **Luck** — per team-week, `expected = fraction of other 11 teams outscored`;
+  `luck = actual_wins − expected_wins`.
+- **Predict** — `P(win) = 1/(1+10^((opp_elo−elo)/400))`.
+- **Awards** — per week: TOP_SCORE, BIGGEST_BUST, CLOSEST_FINISH, BIGGEST_UPSET, LUCKIEST, TOP_PLAYER.
+- **SOS** — cumulative average opponent points-for; ranked 1 (hardest)…12.
+- **Playoffs** — standings (W/L/T, PF/PA), seeding, Monte-Carlo odds (2000 sims).
+- **Records** — cross-season extremes, top 5 per category.
 
-### Sample generator (`sample.py`)
-12 themed teams, each with a hidden quality factor (0.82–1.22) and a 16-player roster. Weekly
-points = `gauss(base·talent·quality, base·0.45)`. Starters = best at each slot; team score = sum
-of the 9 starters (invariant holds by construction). 14 regular weeks (round-robin + rematches)
-+ a top-6 playoff bracket (weeks 15–17). ~40 transactions. Deterministic seed (42).
+## Web
 
-## Web (Next.js) — built
+Next.js 16 (App Router) + TypeScript (strict) + Tailwind v4 + shadcn/ui + Recharts + Framer Motion.
 
-Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui + Recharts + Framer Motion. Reads the
-SQLite DB read-only via `better-sqlite3` in **server components only** (never client). 10 pages:
-overview, rankings, scores, recap, trends, predict, teams (+`[id]`), playoffs, players,
-transactions, records. Data layer in `src/lib/` (`db.ts`, `queries.ts`, `types.ts`, `format.ts`);
-shared charts/cards/motion in `src/components/`. Full spec in `TASKS.md`; planned feature additions
-(streaks, shame corner, shareable recap card, rivalry finder) in `TASKS-FEATURES.md`.
+- DB access: `better-sqlite3`, read-only, server components only (never client).
+- Season/week resolution: cookie-based server defaults + URL search params, managed via
+  `season-context.tsx` (client) and `resolve-season.ts` (server).
+- Global year/week selector lives in the top bar (`TopbarControls`); pages read the resolved
+  context rather than rendering their own selectors.
 
 ## Run
 
@@ -98,10 +108,3 @@ ruff check . && ruff format .    # lint
 # Web
 cd web && pnpm install && pnpm dev   # http://localhost:3000
 ```
-
-## Verified state
-Sample DB generated: 1 season · 12 teams · 17 weeks · 90 matchups · 2880 roster rows ·
-40 transactions · 204 elo · 204 luck · 98 awards · 204 sos · 168 playoff snapshots · 30 records.
-Invariant check: 0 mismatches. Pipeline: `ruff` clean, 26 pytest tests pass. Web: all 10 pages
-render, `pnpm lint` + `pnpm build` clean. Only live ESPN ingest (TASKS A3/G5) remains, blocked on
-credentials.

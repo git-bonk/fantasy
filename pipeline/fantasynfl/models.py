@@ -11,6 +11,14 @@ from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
+class Owner:
+    owner_id: str
+    display_name: str
+    first_name: str | None = None
+    last_name: str | None = None
+
+
+@dataclass(frozen=True)
 class Team:
     espn_team_id: int
     name: str
@@ -18,6 +26,7 @@ class Team:
     owner_name: str
     color: str
     logo_url: str | None = None
+    owner_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -72,6 +81,7 @@ class SeasonData:
     league_id: str
     settings: dict[str, object] = field(default_factory=dict)
     teams: list[Team] = field(default_factory=list)
+    owners: list[Owner] = field(default_factory=list)
     weeks: list[WeekInfo] = field(default_factory=list)
     matchups: list[Matchup] = field(default_factory=list)
     rosters: list[WeekRoster] = field(default_factory=list)

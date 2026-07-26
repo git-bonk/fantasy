@@ -7,13 +7,20 @@ import sqlite3
 from .awards import compute_awards
 from .elo import INITIAL, compute_elo
 from .luck import compute_luck
+from .owner_elo import compute_owner_elo_all
 from .playoffs import compute_standings, playoff_odds, rank_standings
 from .predict import predict_games
 from .records import compute_records
 from .sos import compute_sos
 from .types import GameResult
 
-__all__ = ["compute_all", "load_games", "load_team_ids", "predict_games"]
+__all__ = [
+    "compute_all",
+    "compute_owner_elo_all",
+    "load_games",
+    "load_team_ids",
+    "predict_games",
+]
 
 
 def load_team_ids(conn: sqlite3.Connection, season_id: int) -> list[int]:

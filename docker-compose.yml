@@ -2,9 +2,11 @@ services:
   web:
     build: ./web
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       DB_PATH: /data/fantasynfl.db
+      REVEAL_PASSCODE: ${REVEAL_PASSCODE:-}
+      REVEAL_SECRET: ${REVEAL_SECRET:-}
     volumes:
       - league-data:/data
     depends_on:
@@ -14,8 +16,6 @@ services:
 
   pipeline:
     build: ./pipeline
-    # ESPN credentials for the weekly ingest (copy .env.example -> .env).
-    # Optional: without it the container seeds a sample season instead.
     env_file:
       - path: .env
         required: false
@@ -28,6 +28,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 24
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    network_mode: host
     restart: unless-stopped
 
 volumes:

@@ -7,27 +7,22 @@ import { MatchupCard } from "@/components/cards/MatchupCard";
 import { RecapCard } from "@/components/cards/RecapCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
-  getLatestSeasonId,
   getRecapAwards,
   getRecapLuck,
-  getMaxWeek,
   getSeasons,
   getTopPerformers,
-  getWeeks,
 } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { getRecapMatchups } from "@/lib/recap";
 import type { RecapMatchupRow } from "@/lib/types";
 
 interface RecapPageProps {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ year?: string; week?: string }>;
 }
 
 export default async function RecapPage({ searchParams }: RecapPageProps) {
-  const seasonId = getLatestSeasonId();
-  const weeks = getWeeks(seasonId);
-  const maxWeek = getMaxWeek(seasonId);
-  const params = await searchParams;
-  const weekNum = Math.min(Math.max(Number(params.week) || maxWeek, 1), maxWeek);
+  const ctx = await resolveSeason(searchParams);
+  const { seasonId, weekNum, weeks, maxWeek } = ctx;
 
   const results = getRecapMatchups(seasonId, weekNum);
   const awards = getRecapAwards(seasonId, weekNum);

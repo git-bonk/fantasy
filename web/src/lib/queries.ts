@@ -3,8 +3,11 @@ import type {
   BracketGameRow,
   EloAtWeekRow,
   EloHistoryRow,
+  LeagueHistoryRow,
   LuckRow,
   MatchupRow,
+  OwnerEloHistoryRow,
+  OwnerStandingRow,
   PlayerRow,
   PlayoffStandingRow,
   PositionLeaders,
@@ -35,11 +38,92 @@ export function getSeasons(): Season[] {
   return db.prepare("SELECT * FROM seasons ORDER BY year DESC").all() as Season[];
 }
 
+export function getLeagueHistory(): LeagueHistoryRow[] {
+  return db
+    .prepare(
+      `SELECT t.owner_name, t.owner_id, t.name AS team_name, t.abbrev, t.color, s.year
+       FROM teams t JOIN seasons s ON s.id = t.season_id
+       ORDER BY s.year DESC, t.id`
+    )
+    .all() as LeagueHistoryRow[];
+}
+
+export function getOwnerStandings(): OwnerStandingRow[] {
+  return db
+    .prepare(
+      `SELECT o.id AS owner_id, o.display_name, o.first_name, o.last_name,
+              latest.rating AS rating,
+              COALESCE(rec.wins, 0) AS wins,
+              COALESCE(rec.losses, 0) AS losses,
+              COALESCE(rec.ties, 0) AS ties
+       FROM owners o
+       JOIN (
+         SELECT oe.owner_id, oe.rating
+         FROM owner_elo oe
+         JOIN seasons s ON s.id = oe.season_id
+         WHERE oe.id = (
+           SELECT oe2.id FROM owner_elo oe2
+           JOIN seasons s2 ON s2.id = oe2.season_id
+           WHERE oe2.owner_id = oe.owner_id
+           ORDER BY s2.year DESC, oe2.week_num DESC
+           LIMIT 1
+         )
+       ) latest ON latest.owner_id = o.id
+       LEFT JOIN (
+         SELECT owner_id,
+                SUM(CASE WHEN outcome = 'W' THEN 1 ELSE 0 END) AS wins,
+                SUM(CASE WHEN outcome = 'L' THEN 1 ELSE 0 END) AS losses,
+                SUM(CASE WHEN outcome = 'T' THEN 1 ELSE 0 END) AS ties
+         FROM (
+           SELECT th.owner_id AS owner_id,
+                  CASE WHEN m.winner_team_id = m.home_team_id THEN 'W'
+                       WHEN m.winner_team_id IS NULL THEN 'T' ELSE 'L' END AS outcome
+           FROM matchups m JOIN teams th ON th.id = m.home_team_id
+           WHERE th.owner_id IS NOT NULL
+           UNION ALL
+           SELECT ta.owner_id AS owner_id,
+                  CASE WHEN m.winner_team_id = m.away_team_id THEN 'W'
+                       WHEN m.winner_team_id IS NULL THEN 'T' ELSE 'L' END AS outcome
+           FROM matchups m JOIN teams ta ON ta.id = m.away_team_id
+           WHERE ta.owner_id IS NOT NULL
+         ) sub
+         GROUP BY owner_id
+       ) rec ON rec.owner_id = o.id
+       ORDER BY latest.rating DESC`
+    )
+    .all() as OwnerStandingRow[];
+}
+
+export function getOwnerEloHistory(ownerId: string): OwnerEloHistoryRow[] {
+  return db
+    .prepare(
+      `SELECT s.year, oe.season_id, oe.week_num, oe.rating
+       FROM owner_elo oe JOIN seasons s ON s.id = oe.season_id
+       WHERE oe.owner_id = ?
+       ORDER BY s.year, oe.week_num`
+    )
+    .all(ownerId) as OwnerEloHistoryRow[];
+}
+
 export function getLatestSeasonId(): number {
   const row = db.prepare("SELECT id FROM seasons ORDER BY year DESC LIMIT 1").get() as
     | { id: number }
     | undefined;
   if (!row) throw new Error("No seasons found in database");
+  return row.id;
+}
+
+export function getSeasonByYear(year: number): Season | undefined {
+  return db
+    .prepare("SELECT * FROM seasons WHERE year = ?")
+    .get(year) as Season | undefined;
+}
+
+export function getSeasonIdByYear(year: number): number {
+  const row = db
+    .prepare("SELECT id FROM seasons WHERE year = ?")
+    .get(year) as { id: number } | undefined;
+  if (!row) return getLatestSeasonId();
   return row.id;
 }
 
@@ -66,14 +150,24 @@ export function getMaxWeek(seasonId: number): number {
 export function getRankings(seasonId: number): RankingRow[] {
   return db
     .prepare(
-      `SELECT t.id, t.name, t.abbrev, t.color, e.rating
+      `SELECT t.id, t.name, t.abbrev, t.color, e.rating,
+              COALESCE(ps.wins, 0) AS wins,
+              COALESCE(ps.losses, 0) AS losses,
+              COALESCE(ps.ties, 0) AS ties,
+              COALESCE(ps.points_for, 0) AS points_for
        FROM elo_ratings e JOIN teams t ON t.id = e.team_id
+       LEFT JOIN playoff_snapshots ps ON ps.team_id = t.id
+         AND ps.season_id = e.season_id AND ps.week_num = e.week_num
        WHERE e.season_id = ? AND e.week_num = (
          SELECT MAX(week_num) FROM weeks WHERE season_id = ? AND is_playoff = 0
        )
-       ORDER BY e.rating DESC`
+        ORDER BY e.rating DESC`
     )
     .all(seasonId, seasonId) as RankingRow[];
+}
+
+export function getSeasonPowerRankings(seasonId: number): RankingRow[] {
+  return getRankings(seasonId);
 }
 
 export function getEloHistory(seasonId: number): EloHistoryRow[] {
@@ -156,7 +250,9 @@ export function getTeamTrends(seasonId: number): TeamTrendRow[] {
     .all(seasonId, seasonId) as TeamTrendRow[];
 }
 
-export function getTeams(seasonId: number): TeamStandingRow[] {
+export function getTeams(seasonId: number, weekNum?: number): TeamStandingRow[] {
+  const asOf = weekNum !== undefined ? "AND week_num <= ?" : "";
+  const params = weekNum !== undefined ? [weekNum, seasonId] : [seasonId];
   return db
     .prepare(
       `SELECT t.id, t.name, t.abbrev, t.owner_name, t.color, t.logo_url,
@@ -166,12 +262,12 @@ export function getTeams(seasonId: number): TeamStandingRow[] {
        LEFT JOIN playoff_snapshots ps ON ps.team_id = t.id
          AND ps.week_num = (
            SELECT MAX(week_num) FROM playoff_snapshots
-           WHERE season_id = t.season_id AND team_id = t.id
+           WHERE season_id = t.season_id AND team_id = t.id ${asOf}
          )
        WHERE t.season_id = ?
        ORDER BY ps.playoff_seed IS NULL, ps.playoff_seed, ps.points_for DESC`
     )
-    .all(seasonId) as TeamStandingRow[];
+    .all(...params) as TeamStandingRow[];
 }
 
 export function getTeam(seasonId: number, teamId: number): Team | undefined {
@@ -381,15 +477,17 @@ export function getRivalryGames(seasonId: number, a: number, b: number): Rivalry
     .all(seasonId, a, b, b, a) as RivalryGameRow[];
 }
 
-export function getStreaks(seasonId: number) {
+export function getStreaks(seasonId: number, weekNum?: number) {
+  const asOf = weekNum !== undefined ? "AND w.week_num <= ?" : "";
+  const params = weekNum !== undefined ? [seasonId, weekNum] : [seasonId];
   const matchups = db
     .prepare(
       `SELECT w.week_num, m.home_team_id, m.away_team_id, m.winner_team_id
        FROM matchups m JOIN weeks w ON w.id = m.week_id
-       WHERE w.season_id = ? AND w.is_playoff = 0
+       WHERE w.season_id = ? AND w.is_playoff = 0 ${asOf}
        ORDER BY w.week_num`
     )
-    .all(seasonId) as {
+    .all(...params) as {
     week_num: number;
     home_team_id: number;
     away_team_id: number;

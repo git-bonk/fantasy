@@ -5,11 +5,9 @@ import { WeekSelector } from "@/components/WeekSelector";
 import { WinProbBar } from "@/components/charts/WinProbBar";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
-  getLatestSeasonId,
-  getMaxWeek,
   getPredictData,
-  getWeeks,
 } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { fmtPts } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PredictMatchupRow } from "@/lib/types";
@@ -19,15 +17,13 @@ function eloToProb(homeElo: number, awayElo: number): number {
 }
 
 interface PredictPageProps {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ year?: string; week?: string }>;
 }
 
 export default async function PredictPage({ searchParams }: PredictPageProps) {
-  const seasonId = getLatestSeasonId();
-  const weeks = getWeeks(seasonId);
-  const maxWeek = getMaxWeek(seasonId);
-  const params = await searchParams;
-  const weekNum = Math.min(Math.max(Number(params.week) || maxWeek, 2), maxWeek);
+  const ctx = await resolveSeason(searchParams);
+  const { seasonId, weeks, maxWeek } = ctx;
+  const weekNum = Math.max(ctx.weekNum, 2);
 
   const matchups = getPredictData(seasonId, weekNum).filter(
     (m): m is PredictMatchupRow & { h_elo: number; a_elo: number } =>

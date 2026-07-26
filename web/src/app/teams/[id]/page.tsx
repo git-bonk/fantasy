@@ -16,7 +16,6 @@ import { Reveal } from "@/components/motion/Reveal";
 import { SeasonPointsChart } from "@/components/charts/SeasonPointsChart";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import {
-  getLatestSeasonId,
   getRankings,
   getStreaks,
   getTeam,
@@ -25,15 +24,18 @@ import {
   getTeamRoster,
   getTeamSos,
 } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { fmtPct, fmtPts, fmtRecord } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface TeamDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ year?: string; week?: string }>;
 }
 
-export default async function TeamDetailPage({ params }: TeamDetailPageProps) {
-  const seasonId = getLatestSeasonId();
+export default async function TeamDetailPage({ params, searchParams }: TeamDetailPageProps) {
+  const ctx = await resolveSeason(searchParams);
+  const seasonId = ctx.seasonId;
   const { id } = await params;
   const teamId = Number(id);
 

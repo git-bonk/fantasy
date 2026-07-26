@@ -10,7 +10,16 @@ from __future__ import annotations
 import random
 from datetime import date, timedelta
 
-from .models import Matchup, RosterPlayer, SeasonData, Team, Transaction, WeekInfo, WeekRoster
+from .models import (
+    Matchup,
+    Owner,
+    RosterPlayer,
+    SeasonData,
+    Team,
+    Transaction,
+    WeekInfo,
+    WeekRoster,
+)
 
 TEAMS = [
     ("Gridiron Gladiators", "GLA", "Marcus Reed", "#22c55e"),
@@ -220,8 +229,24 @@ def _week_dates(start: date, week_num: int) -> tuple[str, str]:
 
 def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42) -> SeasonData:
     rng = random.Random(seed)
+    owners = [
+        Owner(
+            owner_id=f"sample-owner-{i + 1:02d}",
+            display_name=owner,
+            first_name=owner.split(" ", 1)[0],
+            last_name=owner.split(" ", 1)[1] if " " in owner else None,
+        )
+        for i, (_name, _abbrev, owner, _color) in enumerate(TEAMS)
+    ]
     teams = [
-        Team(espn_team_id=i + 1, name=name, abbrev=abbrev, owner_name=owner, color=color)
+        Team(
+            espn_team_id=i + 1,
+            name=name,
+            abbrev=abbrev,
+            owner_name=owner,
+            color=color,
+            owner_id=owners[i].owner_id,
+        )
         for i, (name, abbrev, owner, color) in enumerate(TEAMS)
     ]
     team_ids = [t.espn_team_id for t in teams]
@@ -313,6 +338,7 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
         league_id=league_id,
         settings={"scoring": "PPR", "playoff_teams": 6, "roster": "sample"},
         teams=teams,
+        owners=owners,
         weeks=weeks,
         matchups=matchups,
         rosters=week_rosters,

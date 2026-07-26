@@ -101,24 +101,23 @@ Port 3000 is bound to `127.0.0.1` (step 4), so it isn't reachable from the inter
 
 ## 6. Cloudflare Tunnel (HTTPS)
 
-Install `cloudflared`:
+The tunnel runs as a **container** in `docker-compose.yml` (the `tunnel` service), so there's
+nothing to install on the host. You just need to create the tunnel in Cloudflare's dashboard
+and put the token in your environment.
 
-```bash
-curl -L --output cloudflared.deb \
-  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-dpkg -i cloudflared.deb
-```
-
-Create the tunnel in the **Zero Trust dashboard** (no config files needed):
+Create the tunnel in the **Zero Trust dashboard**:
 
 1. Go to <https://one.dash.cloudflare.com> → **Networks → Tunnels → Create a tunnel**.
 2. Connector: **Cloudflared** → name it (e.g. `fantasynfl`) → **Save tunnel**.
    It displays an install **token**.
-3. On the droplet, install it as a service with that token:
+3. Add the token to `docker-compose.yml` (or an override file) in the `tunnel` service:
 
-   ```bash
-   cloudflared service install <TOKEN>
-   systemctl enable --now cloudflared
+   ```yaml
+   tunnel:
+     image: cloudflare/cloudflared:latest
+     command: tunnel --no-autoupdate run --token <TOKEN>
+     network_mode: host
+     restart: unless-stopped
    ```
 
 4. Back in the dashboard the connector shows **Connected**. Open the **Public Hostname**

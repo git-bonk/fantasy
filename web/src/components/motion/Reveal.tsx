@@ -105,9 +105,10 @@ interface AnimatedRowProps {
   children: ReactNode;
   className?: string;
   delay?: number;
+  layout?: boolean;
 }
 
-export function AnimatedRow({ children, className, delay = 0 }: AnimatedRowProps) {
+export function AnimatedRow({ children, className, delay = 0, layout = false }: AnimatedRowProps) {
   const mounted = useMounted();
   const reduce = useReducedMotion();
 
@@ -118,6 +119,7 @@ export function AnimatedRow({ children, className, delay = 0 }: AnimatedRowProps
   return (
     <motion.tr
       className={className}
+      layout={layout}
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}

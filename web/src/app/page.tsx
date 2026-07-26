@@ -13,32 +13,33 @@ import { Sparkline } from "@/components/charts/Sparkline";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { CountUp } from "@/components/motion/CountUp";
 import {
-  getLatestSeasonId,
   getLeagueTrend,
   getMatchups,
-  getMaxWeek,
   getRankings,
   getRecapAwards,
   getSeasons,
   getTeamPointsByWeek,
   getTeams,
-  getWeeks,
 } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { cn } from "@/lib/utils";
 
-export default async function OverviewPage() {
-  const seasonId = getLatestSeasonId();
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; week?: string }>;
+}) {
+  const ctx = await resolveSeason(searchParams);
+  const { seasonId, weekNum, weeks, maxWeek } = ctx;
   const seasons = getSeasons();
   const season = seasons.find((s) => s.id === seasonId);
-  const weeks = getWeeks(seasonId);
-  const maxWeek = getMaxWeek(seasonId);
-  const weekLabel = weeks.find((w) => w.week_num === maxWeek)?.label ?? `Week ${maxWeek}`;
+  const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
 
-  const matchups = getMatchups(seasonId, maxWeek);
+  const matchups = getMatchups(seasonId, weekNum);
   const rankings = getRankings(seasonId);
   const teams = getTeams(seasonId);
   const leagueTrend = getLeagueTrend(seasonId);
-  const awards = getRecapAwards(seasonId, maxWeek);
+  const awards = getRecapAwards(seasonId, weekNum);
 
   const featured = [...matchups].sort(
     (a, b) => b.home_score + b.away_score - (a.home_score + a.away_score)

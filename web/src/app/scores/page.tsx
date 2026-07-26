@@ -3,24 +3,19 @@ import { WeekSelector } from "@/components/WeekSelector";
 import { MatchupCard } from "@/components/cards/MatchupCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
-  getLatestSeasonId,
   getMatchups,
-  getMaxWeek,
   getWeekRosters,
-  getWeeks,
 } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import type { WeekRosterRow } from "@/lib/types";
 
 interface ScoresPageProps {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ year?: string; week?: string }>;
 }
 
 export default async function ScoresPage({ searchParams }: ScoresPageProps) {
-  const seasonId = getLatestSeasonId();
-  const weeks = getWeeks(seasonId);
-  const maxWeek = getMaxWeek(seasonId);
-  const params = await searchParams;
-  const weekNum = Math.min(Math.max(Number(params.week) || maxWeek, 1), maxWeek);
+  const ctx = await resolveSeason(searchParams);
+  const { seasonId, weekNum, weeks, maxWeek } = ctx;
 
   const matchups = getMatchups(seasonId, weekNum);
   const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
@@ -52,6 +47,7 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
             <StaggerItem key={m.id}>
               <MatchupCard
                 matchup={m}
+                autoOpenOnDesktop
                 rosters={{
                   home: rostersByTeam.get(m.hid) ?? [],
                   away: rostersByTeam.get(m.aid) ?? [],

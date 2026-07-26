@@ -1,4 +1,5 @@
-import { getLatestSeasonId, getMaxWeek, getWeeks, getTopPerformers, getPositionLeaders } from "@/lib/queries";
+import { getTopPerformers, getPositionLeaders } from "@/lib/queries";
+import { resolveSeason } from "@/lib/resolve-season";
 import { PerformersTable } from "@/components/players/PerformersTable";
 import { PositionLeaders } from "@/components/players/PositionLeaders";
 import { WeekSelector } from "@/components/WeekSelector";
@@ -7,13 +8,10 @@ import { Reveal } from "@/components/motion/Reveal";
 export default async function PlayersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string }>;
+  searchParams: Promise<{ year?: string; week?: string }>;
 }) {
-  const { week: weekParam } = await searchParams;
-  const seasonId = getLatestSeasonId();
-  const weeks = getWeeks(seasonId);
-  const maxWeek = getMaxWeek(seasonId);
-  const week = Math.min(Math.max(Number(weekParam) || maxWeek, 1), maxWeek);
+  const ctx = await resolveSeason(searchParams);
+  const { seasonId, weekNum: week, weeks, maxWeek } = ctx;
 
   const performers = getTopPerformers(seasonId, week);
   const positionLeaders = getPositionLeaders(seasonId);

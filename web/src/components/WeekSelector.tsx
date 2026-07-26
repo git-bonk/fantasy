@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
 import { Calendar } from "lucide-react";
 import {
   Select,
@@ -9,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSeason } from "@/lib/season-context";
 import type { Week } from "@/lib/types";
 
 interface WeekSelectorProps {
@@ -17,25 +17,22 @@ interface WeekSelectorProps {
 }
 
 export function WeekSelector({ weeks, current }: WeekSelectorProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const handleChange = (value: number | null) => {
-    if (value === null) return;
-    const params = new URLSearchParams(window.location.search);
-    params.set("week", String(value));
-    router.push(`${pathname}?${params.toString()}`);
-  };
+  const { setWeek } = useSeason();
 
   return (
-    <Select value={current} onValueChange={handleChange}>
+    <Select
+      value={String(current)}
+      onValueChange={(v: string | null) => {
+        if (v !== null) setWeek(Number(v));
+      }}
+    >
       <SelectTrigger className="min-w-36">
         <Calendar className="h-4 w-4 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {weeks.map((w) => (
-          <SelectItem key={w.week_num} value={w.week_num}>
+          <SelectItem key={w.week_num} value={String(w.week_num)}>
             {w.label}
           </SelectItem>
         ))}

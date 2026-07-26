@@ -3,16 +3,19 @@
 A beautiful, data-rich dashboard for your ESPN fantasy football league.
 
 It scrapes your league's data from ESPN, computes power rankings (Elo), a luck meter,
-matchup predictions, weekly awards, strength-of-schedule, playoff odds, and all-time
-records — then presents it all in a clean, modern dark dashboard.
+matchup predictions, weekly awards, strength-of-schedule, playoff odds, all-time records,
+and a running cross-season Elo for every owner — then presents it all in a clean, modern
+dark dashboard.
 
 ## Features
 
-- **Power Rankings** — Elo ratings that react to margin of victory and opponent strength
+- **Season Power Rankings** — per-team Elo ratings that react to margin of victory and opponent strength
+- **All-Time Rankings** — a running Elo keyed by owner that carries across seasons, with career records and per-owner detail
 - **Luck Meter** — how much your record over/under-performed your scoring
 - **Predict** — Elo-based win probabilities for each matchup
 - **Recap** — weekly summary with top scorer, biggest upset, closest finish, and award badges
 - **Trends** — points over time, streaks, head-to-head matrix
+- **Teams & League History** — per-week standings and every owner who's ever fielded a team
 - **Playoffs** — live standings, seeds, Monte-Carlo playoff odds, and bracket
 - **Players** — weekly top performers and season leaders
 - **Transactions** — the league's move history
@@ -60,6 +63,8 @@ The whole stack runs as two containers that share a `league-data` volume holding
 - **`pipeline`** — a `cron` daemon that refreshes the DB from ESPN **weekly**
   (Mondays 06:00) by running `fantasynfl ingest`. On first boot, if no DB exists,
   it seeds a sample season so the dashboard has data immediately.
+- **`tunnel`** — a `cloudflare/cloudflared` container that provides HTTPS via a
+  Cloudflare Tunnel. No inbound ports are exposed; the tunnel dials out.
 
 ```bash
 cp .env.example .env              # fill in ESPN_LEAGUE_ID, ESPN_S2, SWID

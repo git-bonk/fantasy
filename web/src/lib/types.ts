@@ -6,6 +6,15 @@ export interface Season {
   created_at: string;
 }
 
+export interface Owner {
+  id: string;
+  display_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  last_seen_season_id: number | null;
+  alias_num: number | null;
+}
+
 export interface Team {
   id: number;
   season_id: number;
@@ -15,6 +24,16 @@ export interface Team {
   owner_name: string;
   color: string;
   logo_url: string | null;
+  owner_id: string | null;
+}
+
+export interface LeagueHistoryRow {
+  owner_name: string;
+  owner_id: string | null;
+  team_name: string;
+  abbrev: string;
+  color: string;
+  year: number;
 }
 
 export interface Week {
@@ -65,6 +84,32 @@ export interface EloRating {
   id: number;
   season_id: number;
   team_id: number;
+  week_num: number;
+  rating: number;
+}
+
+export interface OwnerEloRating {
+  id: number;
+  owner_id: string;
+  season_id: number;
+  week_num: number;
+  rating: number;
+}
+
+export interface OwnerStandingRow {
+  owner_id: string;
+  display_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  rating: number;
+  wins: number;
+  losses: number;
+  ties: number;
+}
+
+export interface OwnerEloHistoryRow {
+  year: number;
+  season_id: number;
   week_num: number;
   rating: number;
 }
@@ -129,6 +174,10 @@ export interface RankingRow {
   abbrev: string;
   color: string;
   rating: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  points_for: number;
 }
 
 export interface EloHistoryRow {

@@ -14,19 +14,22 @@ import {
   Star,
   ArrowLeftRight,
   Medal,
-  Crosshair,
+  History,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSeason } from "@/lib/season-context";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/rankings", label: "Rankings", icon: Trophy },
+  { href: "/all-time", label: "All-Time", icon: Crown },
   { href: "/scores", label: "Scores", icon: ClipboardList },
   { href: "/recap", label: "Recap", icon: Newspaper },
   { href: "/trends", label: "Trends", icon: TrendingUp },
   { href: "/predict", label: "Predict", icon: Brain },
   { href: "/teams", label: "Teams", icon: Users },
-  { href: "/rivalry", label: "Rivalry", icon: Crosshair },
+  { href: "/history", label: "League History", icon: History },
   { href: "/playoffs", label: "Playoffs", icon: Swords },
   { href: "/players", label: "Players", icon: Star },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
@@ -35,6 +38,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { withParams } = useSeason();
 
   return (
     <>
@@ -56,7 +60,7 @@ export function Sidebar() {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={withParams(item.href)}
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
@@ -81,7 +85,7 @@ export function Sidebar() {
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={withParams(item.href)}
               className={cn(
                 "flex min-w-16 shrink-0 flex-col items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-medium transition-colors",
                 isActive
