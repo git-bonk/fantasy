@@ -55,7 +55,7 @@ export default async function RivalryPage({ searchParams }: RivalryPageProps) {
   if (validIds.length < 2) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Rivalry Finder" subtitle="All-time head-to-head" />
+        <PageHeader title="Rivalry Finder" subtitle="Head-to-head this season" />
         <p className="py-16 text-center text-sm text-zinc-500">Not enough teams to compare.</p>
       </div>
     );
@@ -117,7 +117,7 @@ export default async function RivalryPage({ searchParams }: RivalryPageProps) {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Rivalry Finder" subtitle="All-time head-to-head" />
+      <PageHeader title="Rivalry Finder" subtitle="Head-to-head this season" />
 
       <Reveal>
         <RivalryPicker teams={teams} a={a} b={b} />

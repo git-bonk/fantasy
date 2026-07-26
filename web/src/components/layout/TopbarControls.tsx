@@ -1,8 +1,10 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { SeasonSelector } from "@/components/SeasonSelector";
 import { WeekSelector } from "@/components/WeekSelector";
 import { useSeason } from "@/lib/season-context";
+import { scopeFor } from "@/lib/selector-scope";
 import type { Season, Week } from "@/lib/types";
 
 interface TopbarControlsProps {
@@ -22,6 +24,8 @@ export function TopbarControls({
   weeksByYear,
 }: TopbarControlsProps) {
   const { year, week } = useSeason();
+  const pathname = usePathname();
+  const scope = scopeFor(pathname);
 
   // Prefer URL params (from context) over cookie-based server values
   const currentYear = year ?? serverYear;
@@ -34,8 +38,15 @@ export function TopbarControls({
         seasons={seasons}
         currentYear={currentYear}
         maxWeeks={maxWeeks}
+        applies={scope.year}
+        mutedLabel="All-time"
       />
-      <WeekSelector weeks={weeks} current={currentWeek} />
+      <WeekSelector
+        weeks={weeks}
+        current={currentWeek}
+        applies={scope.week}
+        mutedLabel={scope.year ? "Full season" : "All-time"}
+      />
     </div>
   );
 }
