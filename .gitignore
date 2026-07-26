@@ -40,3 +40,6 @@ cloudflared.deb
 # TLS material (never commit private keys/certs)
 *.pem
 *.key
+
+# Working docs (kept locally, not tracked)
+CHANGELOG.md
