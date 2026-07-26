@@ -4,6 +4,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { EloLineChart } from "@/components/charts/EloLineChart";
 import { RankingsTable } from "@/components/rankings/RankingsTable";
 import { getEloHistory, getSeasonPowerRankings } from "@/lib/queries";
+import { getRevealState } from "@/lib/reveal";
 import { resolveSeason } from "@/lib/resolve-season";
 
 export default async function RankingsPage({
@@ -13,8 +14,9 @@ export default async function RankingsPage({
 }) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
-  const rankings = getSeasonPowerRankings(seasonId);
-  const history = getEloHistory(seasonId);
+  const rankings = await getSeasonPowerRankings(seasonId);
+  const history = await getEloHistory(seasonId);
+  const revealed = await getRevealState();
 
   const weeks = [...new Set(history.map((h) => h.week_num))].sort((a, b) => a - b);
   const maxRegWeek = weeks.filter((w) => w <= 14).at(-1) ?? weeks.at(-1) ?? 1;
@@ -51,7 +53,7 @@ export default async function RankingsPage({
       <Reveal delay={0.05}>
         <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
           <CardContent className="p-0">
-            <RankingsTable rankings={rankings} deltas={deltas} />
+            <RankingsTable rankings={rankings} deltas={deltas} revealed={revealed} />
           </CardContent>
         </Card>
       </Reveal>

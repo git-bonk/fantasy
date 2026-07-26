@@ -1,9 +1,11 @@
 import { History, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
+import { AliasTag } from "@/components/cards/AliasTag";
 import { StatCard } from "@/components/cards/StatCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { getLeagueHistory, getSeasons } from "@/lib/queries";
+import { getRevealState } from "@/lib/reveal";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -29,8 +31,9 @@ function yearSpan(years: number[]): string {
   return min === max ? `${min}` : `${min}\u2013${max}`;
 }
 
-export default function HistoryPage() {
-  const rows = getLeagueHistory();
+export default async function HistoryPage() {
+  const rows = await getLeagueHistory();
+  const revealed = await getRevealState();
   const seasonCount = getSeasons().length;
 
   const owners = new Map<string, OwnerEntry>();
@@ -100,7 +103,11 @@ export default function HistoryPage() {
                       {initials(owner.name)}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate font-display text-base font-bold">{owner.name}</p>
+                      {revealed ? (
+                        <p className="truncate font-display text-base font-bold">{owner.name}</p>
+                      ) : (
+                        <AliasTag label={owner.name} />
+                      )}
                       <p className="text-xs text-zinc-500">
                         {yearSpan(owner.years)} ·{" "}
                         {owner.years.length === 1 ? "1 season" : `${owner.years.length} seasons`}
@@ -120,9 +127,13 @@ export default function HistoryPage() {
                         >
                           {team.abbrev}
                         </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {team.name}
-                        </span>
+                        {revealed ? (
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                            {team.name}
+                          </span>
+                        ) : (
+                          <AliasTag label={team.name} className="min-w-0 flex-1" />
+                        )}
                         {team.years.length > 1 && (
                           <span
                             className={cn(

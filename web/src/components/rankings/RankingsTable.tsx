@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AnimatedRow } from "@/components/motion/Reveal";
+import { AliasTag } from "@/components/cards/AliasTag";
 import { cn } from "@/lib/utils";
 import { fmtRecord } from "@/lib/format";
 import type { RankingRow } from "@/lib/types";
@@ -44,9 +45,10 @@ function SortHeader({ label, active, onClick }: SortHeaderProps) {
 interface RankingsTableProps {
   rankings: RankingRow[];
   deltas: Record<number, number>;
+  revealed: boolean;
 }
 
-export function RankingsTable({ rankings, deltas }: RankingsTableProps) {
+export function RankingsTable({ rankings, deltas, revealed }: RankingsTableProps) {
   const [sortBy, setSortBy] = useState<SortKey>("rating");
 
   const sorted = useMemo(() => {
@@ -121,7 +123,11 @@ export function RankingsTable({ rankings, deltas }: RankingsTableProps) {
                   >
                     {team.abbrev}
                   </span>
-                  <span className="font-semibold">{team.name}</span>
+                  {revealed ? (
+                    <span className="font-semibold">{team.name}</span>
+                  ) : (
+                    <AliasTag label={team.name} />
+                  )}
                 </div>
               </TableCell>
               <TableCell className="py-3 text-right font-mono text-sm font-semibold tabular-nums text-zinc-300">

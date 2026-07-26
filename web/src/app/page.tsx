@@ -8,19 +8,25 @@ import {
   Zap,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { AliasTag } from "@/components/cards/AliasTag";
 import { StatCard } from "@/components/cards/StatCard";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { CountUp } from "@/components/motion/CountUp";
+import { Bracket } from "@/components/playoffs/Bracket";
+import { FinalStandingsTable } from "@/components/playoffs/FinalStandingsTable";
 import {
+  getFinalStandings,
   getLeagueTrend,
   getMatchups,
+  getPlayoffBracket,
   getRankings,
   getRecapAwards,
   getSeasons,
   getTeamPointsByWeek,
   getTeams,
 } from "@/lib/queries";
+import { getRevealState } from "@/lib/reveal";
 import { resolveSeason } from "@/lib/resolve-season";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +39,19 @@ export default async function OverviewPage({
   const { seasonId, weekNum, weeks, maxWeek } = ctx;
   const seasons = getSeasons();
   const season = seasons.find((s) => s.id === seasonId);
-  const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
+  const selectedWeek = weeks.find((w) => w.week_num === weekNum);
+  const weekLabel = selectedWeek?.label ?? `Week ${weekNum}`;
+  const isPlayoffWeek = selectedWeek?.is_playoff === 1;
+  const isFinalWeek = weekNum === maxWeek;
 
-  const matchups = getMatchups(seasonId, weekNum);
-  const rankings = getRankings(seasonId);
-  const teams = getTeams(seasonId);
+  const matchups = await getMatchups(seasonId, weekNum);
+  const revealed = await getRevealState();
+  const rankings = await getRankings(seasonId);
+  const teams = await getTeams(seasonId);
   const leagueTrend = getLeagueTrend(seasonId);
-  const awards = getRecapAwards(seasonId, weekNum);
+  const awards = await getRecapAwards(seasonId, weekNum);
+  const bracket = isPlayoffWeek ? await getPlayoffBracket(seasonId) : [];
+  const finalStandings = isFinalWeek ? await getFinalStandings(seasonId) : [];
 
   const featured = [...matchups].sort(
     (a, b) => b.home_score + b.away_score - (a.home_score + a.away_score)
@@ -95,7 +107,16 @@ export default async function OverviewPage({
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Reveal className="xl:col-span-2">
-          {featured ? (
+          {isPlayoffWeek ? (
+            <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
+              <CardContent className="p-6 md:p-8">
+                <p className="mb-6 text-center text-[11px] font-semibold tracking-widest text-zinc-500 uppercase">
+                  Playoff Bracket
+                </p>
+                <Bracket games={bracket} />
+              </CardContent>
+            </Card>
+          ) : featured ? (
             <Card className="relative overflow-hidden border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
               <div
                 className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -122,9 +143,15 @@ export default async function OverviewPage({
                     >
                       {featured.aabb}
                     </span>
-                    <p className="mt-3 truncate font-display text-sm font-semibold md:text-base">
-                      {featured.aname}
-                    </p>
+                    {revealed ? (
+                      <p className="mt-3 truncate font-display text-sm font-semibold md:text-base">
+                        {featured.aname}
+                      </p>
+                    ) : (
+                      <div className="mt-3 flex justify-center">
+                        <AliasTag label={featured.aname} />
+                      </div>
+                    )}
                     <CountUp
                       value={featured.away_score}
                       decimals={2}
@@ -160,9 +187,15 @@ export default async function OverviewPage({
                     >
                       {featured.habb}
                     </span>
-                    <p className="mt-3 truncate font-display text-sm font-semibold md:text-base">
-                      {featured.hname}
-                    </p>
+                    {revealed ? (
+                      <p className="mt-3 truncate font-display text-sm font-semibold md:text-base">
+                        {featured.hname}
+                      </p>
+                    ) : (
+                      <div className="mt-3 flex justify-center">
+                        <AliasTag label={featured.hname} />
+                      </div>
+                    )}
                     <CountUp
                       value={featured.home_score}
                       decimals={2}
@@ -202,12 +235,23 @@ export default async function OverviewPage({
                     {topTeam.abbrev}
                   </span>
                   <div className="min-w-0">
-                    <p className="truncate font-display text-base font-bold">
-                      {topTeam.name}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {topTeamStanding?.owner_name}
-                    </p>
+                    {revealed ? (
+                      <p className="truncate font-display text-base font-bold">
+                        {topTeam.name}
+                      </p>
+                    ) : (
+                      <AliasTag label={topTeam.name} />
+                    )}
+                    {revealed ? (
+                      <p className="text-xs text-zinc-500">
+                        {topTeamStanding?.owner_name}
+                      </p>
+                    ) : (
+                      <AliasTag
+                        label={topTeamStanding?.owner_name ?? ""}
+                        className="mt-0.5"
+                      />
+                    )}
                   </div>
                 </div>
                 <div className="mt-4 flex items-baseline gap-2">
@@ -290,6 +334,20 @@ export default async function OverviewPage({
       </Stagger>
 
       <Reveal delay={0.05}>
+        {isFinalWeek ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-sm font-semibold">Final Standings</h2>
+              <Link
+                href="/rankings"
+                className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-emerald-400"
+              >
+                Full rankings <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <FinalStandingsTable rows={finalStandings} revealed={revealed} />
+          </div>
+        ) : (
         <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
           <CardContent className="p-0">
             <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3.5">
@@ -317,9 +375,13 @@ export default async function OverviewPage({
                   >
                     {t.abbrev}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                    {t.name}
-                  </span>
+                  {revealed ? (
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                      {t.name}
+                    </span>
+                  ) : (
+                    <AliasTag label={t.name} className="min-w-0 flex-1" />
+                  )}
                   <span className="font-mono text-sm font-bold tabular-nums">
                     {Math.round(t.rating)}
                   </span>
@@ -331,6 +393,7 @@ export default async function OverviewPage({
             </div>
           </CardContent>
         </Card>
+        )}
       </Reveal>
     </div>
   );

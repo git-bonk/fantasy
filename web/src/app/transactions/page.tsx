@@ -10,7 +10,7 @@ export default async function TransactionsPage({
 }) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
-  const transactions = getTransactions(seasonId);
+  const transactions = await getTransactions(seasonId);
 
   return (
     <div className="space-y-8">

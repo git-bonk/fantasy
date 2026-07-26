@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS seasons (
   year INTEGER NOT NULL UNIQUE,
   league_id TEXT NOT NULL,
   settings_json TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active'
 );
 
 CREATE TABLE IF NOT EXISTS owners (
@@ -42,7 +43,6 @@ CREATE TABLE IF NOT EXISTS owners (
   display_name TEXT NOT NULL,
   first_name TEXT,
   last_name TEXT,
-  last_seen_season_id INTEGER,
   alias_num INTEGER UNIQUE
 );
 
@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS teams (
   color TEXT NOT NULL,
   logo_url TEXT,
   owner_id TEXT REFERENCES owners(id),
+  standing INTEGER,
+  final_standing INTEGER,
   UNIQUE(season_id, espn_team_id)
 );
 
@@ -67,6 +69,7 @@ CREATE TABLE IF NOT EXISTS weeks (
   start_date TEXT,
   end_date TEXT,
   is_playoff INTEGER NOT NULL DEFAULT 0,
+  finalized INTEGER NOT NULL DEFAULT 0,
   UNIQUE(season_id, week_num)
 );
 
@@ -78,7 +81,8 @@ CREATE TABLE IF NOT EXISTS matchups (
   home_score REAL NOT NULL,
   away_score REAL NOT NULL,
   winner_team_id INTEGER REFERENCES teams(id),
-  is_playoff INTEGER NOT NULL DEFAULT 0
+  is_playoff INTEGER NOT NULL DEFAULT 0,
+  playoff_tier TEXT NOT NULL DEFAULT 'NONE'
 );
 
 CREATE TABLE IF NOT EXISTS rosters (
@@ -211,10 +215,54 @@ def init_db(conn: sqlite3.Connection) -> None:
             conn.execute("ALTER TABLE teams ADD COLUMN owner_id TEXT REFERENCES owners(id)")
         except sqlite3.OperationalError:
             pass
+    if "standing" not in team_cols:
+        try:
+            conn.execute("ALTER TABLE teams ADD COLUMN standing INTEGER")
+        except sqlite3.OperationalError:
+            pass
+    if "final_standing" not in team_cols:
+        try:
+            conn.execute("ALTER TABLE teams ADD COLUMN final_standing INTEGER")
+        except sqlite3.OperationalError:
+            pass
+    matchup_cols = {r["name"] for r in conn.execute("PRAGMA table_info(matchups)").fetchall()}
+    if "playoff_tier" not in matchup_cols:
+        try:
+            conn.execute(
+                "ALTER TABLE matchups ADD COLUMN playoff_tier TEXT NOT NULL DEFAULT 'NONE'"
+            )
+        except sqlite3.OperationalError:
+            pass
     owner_cols = {r["name"] for r in conn.execute("PRAGMA table_info(owners)").fetchall()}
     if "alias_num" not in owner_cols:
         try:
             conn.execute("ALTER TABLE owners ADD COLUMN alias_num INTEGER")
+        except sqlite3.OperationalError:
+            pass
+    if "last_seen_season_id" in owner_cols:
+        try:
+            conn.execute("ALTER TABLE owners DROP COLUMN last_seen_season_id")
+        except sqlite3.OperationalError:
+            pass
+    week_cols = {r["name"] for r in conn.execute("PRAGMA table_info(weeks)").fetchall()}
+    if "finalized" not in week_cols:
+        try:
+            conn.execute("ALTER TABLE weeks ADD COLUMN finalized INTEGER NOT NULL DEFAULT 0")
+            conn.execute(
+                "UPDATE weeks SET finalized = 1 WHERE week_num < "
+                "(SELECT MAX(w2.week_num) FROM weeks w2 WHERE w2.season_id = weeks.season_id)"
+            )
+        except sqlite3.OperationalError:
+            pass
+    season_cols = {r["name"] for r in conn.execute("PRAGMA table_info(seasons)").fetchall()}
+    if "status" not in season_cols:
+        try:
+            conn.execute("ALTER TABLE seasons ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+            conn.execute(
+                "UPDATE seasons SET status = 'complete' WHERE id IN "
+                "(SELECT season_id FROM teams WHERE final_standing IS NOT NULL "
+                "AND final_standing > 0)"
+            )
         except sqlite3.OperationalError:
             pass
     conn.commit()
@@ -293,36 +341,43 @@ def assign_owner_aliases(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def store_owners(
-    conn: sqlite3.Connection, owners: list[Owner], season_id: int | None = None
-) -> None:
+def store_owners(conn: sqlite3.Connection, owners: list[Owner]) -> None:
     conn.executemany(
-        "INSERT INTO owners (id, display_name, first_name, last_name, last_seen_season_id) "
-        "VALUES (?, ?, ?, ?, ?) "
+        "INSERT INTO owners (id, display_name, first_name, last_name) "
+        "VALUES (?, ?, ?, ?) "
         "ON CONFLICT(id) DO UPDATE SET "
         "display_name = excluded.display_name, "
         "first_name = excluded.first_name, "
-        "last_name = excluded.last_name, "
-        "last_seen_season_id = excluded.last_seen_season_id",
-        [(o.owner_id, o.display_name, o.first_name, o.last_name, season_id) for o in owners],
+        "last_name = excluded.last_name",
+        [(o.owner_id, o.display_name, o.first_name, o.last_name) for o in owners],
     )
     assign_owner_aliases(conn)
 
 
 def store_teams(conn: sqlite3.Connection, season_id: int, teams: list[Team]) -> dict[int, int]:
-    """Insert teams for a season. Returns {espn_team_id: db_row_id}."""
-    team_row_id: dict[int, int] = {}
+    """Insert or update teams for a season. Returns {espn_team_id: db_row_id}.
+
+    Uses an upsert keyed on (season_id, espn_team_id) so incremental ingests can
+    refresh standings/final_standing without disturbing the stable row ids that
+    matchups and rosters reference.
+    """
     for t in teams:
-        cur = conn.execute(
+        conn.execute(
             "INSERT INTO teams "
-            "(season_id, espn_team_id, name, abbrev, owner_name, color, logo_url, owner_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "(season_id, espn_team_id, name, abbrev, owner_name, color, logo_url, owner_id, "
+            "standing, final_standing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(season_id, espn_team_id) DO UPDATE SET "
+            "name = excluded.name, abbrev = excluded.abbrev, owner_name = excluded.owner_name, "
+            "color = excluded.color, logo_url = excluded.logo_url, owner_id = excluded.owner_id, "
+            "standing = excluded.standing, final_standing = excluded.final_standing",
             (season_id, t.espn_team_id, t.name, t.abbrev, t.owner_name, t.color, t.logo_url,
-             t.owner_id),
+             t.owner_id, t.standing, t.final_standing),
         )
-        team_row_id[t.espn_team_id] = cur.lastrowid
+    rows = conn.execute(
+        "SELECT id, espn_team_id FROM teams WHERE season_id = ?", (season_id,)
+    ).fetchall()
     conn.commit()
-    return team_row_id
+    return {r["espn_team_id"]: r["id"] for r in rows}
 
 
 def get_completed_weeks(conn: sqlite3.Connection, season_id: int) -> set[int]:
@@ -333,6 +388,39 @@ def get_completed_weeks(conn: sqlite3.Connection, season_id: int) -> set[int]:
     return {r["week_num"] for r in rows}
 
 
+def get_season_status(conn: sqlite3.Connection, year: int) -> str | None:
+    """Return the season's status ('active'/'complete'), or None if not ingested."""
+    row = conn.execute("SELECT status FROM seasons WHERE year = ?", (year,)).fetchone()
+    return row["status"] if row else None
+
+
+def set_season_status(conn: sqlite3.Connection, season_id: int, status: str) -> None:
+    conn.execute("UPDATE seasons SET status = ? WHERE id = ?", (status, season_id))
+    conn.commit()
+
+
+def get_max_week(conn: sqlite3.Connection, season_id: int) -> int | None:
+    """Return the highest stored week_num for a season, or None if no weeks."""
+    row = conn.execute(
+        "SELECT MAX(week_num) AS mw FROM weeks WHERE season_id = ?", (season_id,)
+    ).fetchone()
+    return row["mw"] if row and row["mw"] is not None else None
+
+
+def get_unfinalized_weeks(conn: sqlite3.Connection, season_id: int) -> set[int]:
+    """Return week_nums stored but not yet finalized (still in progress)."""
+    rows = conn.execute(
+        "SELECT week_num FROM weeks WHERE season_id = ? AND finalized = 0", (season_id,)
+    ).fetchall()
+    return {r["week_num"] for r in rows}
+
+
+def finalize_all_weeks(conn: sqlite3.Connection, season_id: int) -> None:
+    """Mark every week of a season finalized (used when the season ends)."""
+    conn.execute("UPDATE weeks SET finalized = 1 WHERE season_id = ?", (season_id,))
+    conn.commit()
+
+
 def store_week(
     conn: sqlite3.Connection,
     season_id: int,
@@ -340,8 +428,14 @@ def store_week(
     week_info: WeekInfo,
     matchups: list[Matchup],
     rosters: list[WeekRoster],
+    finalized: bool = False,
 ) -> None:
-    """Store one week's data and commit. Idempotent: deletes existing week first."""
+    """Store one week's data and commit. Idempotent: deletes existing week first.
+
+    ``finalized`` marks a week as frozen (its scores are final and it will not be
+    re-fetched on incremental runs). Weeks at or beyond ESPN's current week stay
+    unfinalized so the next run refreshes them.
+    """
     # Delete existing week data if re-running
     existing = conn.execute(
         "SELECT id FROM weeks WHERE season_id = ? AND week_num = ?",
@@ -353,10 +447,11 @@ def store_week(
         conn.execute("DELETE FROM weeks WHERE id = ?", (week_id,))  # cascades matchups+rosters
 
     cur = conn.execute(
-        "INSERT INTO weeks (season_id, week_num, label, start_date, end_date, is_playoff) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO weeks "
+        "(season_id, week_num, label, start_date, end_date, is_playoff, finalized) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (season_id, week_info.week_num, week_info.label, week_info.start_date,
-         week_info.end_date, int(week_info.is_playoff)),
+         week_info.end_date, int(week_info.is_playoff), int(finalized)),
     )
     week_id = cur.lastrowid
 
@@ -372,8 +467,9 @@ def store_week(
         conn.execute(
             "INSERT INTO matchups "
             "(week_id, home_team_id, away_team_id, home_score, away_score, winner_team_id, "
-            "is_playoff) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (week_id, home_id, away_id, m.home_score, m.away_score, winner, int(m.is_playoff)),
+            "is_playoff, playoff_tier) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (week_id, home_id, away_id, m.home_score, m.away_score, winner, int(m.is_playoff),
+             m.playoff_tier),
         )
 
     for r in rosters:
@@ -427,16 +523,16 @@ def store_season(conn: sqlite3.Connection, season: SeasonData) -> int:
     )
     season_id = cur.lastrowid
 
-    store_owners(conn, season.owners, season_id)
+    store_owners(conn, season.owners)
 
     team_row_id: dict[int, int] = {}
     for t in season.teams:
         cur = conn.execute(
             "INSERT INTO teams "
-            "(season_id, espn_team_id, name, abbrev, owner_name, color, logo_url, owner_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "(season_id, espn_team_id, name, abbrev, owner_name, color, logo_url, owner_id, "
+            "standing, final_standing) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (season_id, t.espn_team_id, t.name, t.abbrev, t.owner_name, t.color, t.logo_url,
-             t.owner_id),
+             t.owner_id, t.standing, t.final_standing),
         )
         team_row_id[t.espn_team_id] = cur.lastrowid
 
@@ -461,7 +557,7 @@ def store_season(conn: sqlite3.Connection, season: SeasonData) -> int:
         conn.execute(
             "INSERT INTO matchups "
             "(week_id, home_team_id, away_team_id, home_score, away_score, winner_team_id, "
-            "is_playoff) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "is_playoff, playoff_tier) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 week_row_id[m.week_num],
                 home_id,
@@ -470,6 +566,7 @@ def store_season(conn: sqlite3.Connection, season: SeasonData) -> int:
                 m.away_score,
                 winner,
                 int(m.is_playoff),
+                m.playoff_tier,
             ),
         )
 

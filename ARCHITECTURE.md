@@ -59,6 +59,28 @@ team has `NULL`).
 **Invariant:** a team's matchup score == sum of its STARTER roster points that week
 (starter slots: `QB, RB, WR, TE, FLEX, K, DEF`; bench = `BN`).
 
+## Owner/team obfuscation
+
+Identities are obfuscated site-wide by default; there is no exempt page. While locked, real
+owner names, ESPN owner ids, and team names/abbrevs are **never sent to the client** — they are
+absent from the DOM and from inspect. NFL player names stay public.
+
+- **Pseudonymization** — neutral aliases `Owner N` / `Team N`. The number is `owners.alias_num`;
+  a team inherits its owner's number ("Team 3" is owned by "Owner 3"). `assign_owner_aliases()`
+  (in `db.py`, called from `store_owners`) is idempotent: it numbers unnumbered owners in
+  `sorted(owner_id)` order from `max(alias_num)+1`.
+- **Enforcement** — a query-level transform in `web/src/lib/queries.ts` masks the identity fields
+  when locked. Masking lives in the server-only data layer, so it cannot be bypassed client-side.
+- **Reveal** — passcode-gated (`REVEAL_PASSCODE`). `unlock(passcode)` and `setReveal(on)`
+  (`web/src/lib/actions.ts`) set HMAC-signed `HttpOnly` `unlocked` / `reveal` cookies via
+  `REVEAL_SECRET` — a plain cookie is forgeable in DevTools, so the signature is what enforces it.
+  `getRevealState()` (`web/src/lib/reveal.ts`) returns true only when unlocked **and** the toggle is
+  on. A site-wide `RevealToggle` in the Topbar drives it; the client follows with `router.refresh()`.
+- **Env** — `REVEAL_PASSCODE` / `REVEAL_SECRET` are wired in `web/.env.example` and `docker-compose.yml`.
+
+The query transform (J2) and the alias UI wiring (L2) above describe the designed model and may
+still be in progress; the schema field, cookie signing, server actions, and toggle are in place.
+
 ## Pipeline
 
 1. **Source → `SeasonData`.** Either `sample.py` (synthetic) or `espn.py` (real ESPN via

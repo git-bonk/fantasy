@@ -12,6 +12,7 @@ import {
   getSeasons,
   getTopPerformers,
 } from "@/lib/queries";
+import { getRevealState } from "@/lib/reveal";
 import { resolveSeason } from "@/lib/resolve-season";
 import { getRecapMatchups } from "@/lib/recap";
 import type { RecapMatchupRow } from "@/lib/types";
@@ -24,9 +25,10 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
   const ctx = await resolveSeason(searchParams);
   const { seasonId, weekNum, weeks, maxWeek } = ctx;
 
-  const results = getRecapMatchups(seasonId, weekNum);
-  const awards = getRecapAwards(seasonId, weekNum);
-  const luck = getRecapLuck(seasonId, weekNum);
+  const results = await getRecapMatchups(seasonId, weekNum);
+  const revealed = await getRevealState();
+  const awards = await getRecapAwards(seasonId, weekNum);
+  const luck = await getRecapLuck(seasonId, weekNum);
   const maxAbs = Math.max(...luck.map((l) => Math.abs(l.luck_score)), 0.01);
   const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
 
@@ -39,7 +41,7 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
   const leagueAvg = allScores.length
     ? allScores.reduce((sum, s) => sum + s, 0) / allScores.length
     : 0;
-  const topScorer = getTopPerformers(seasonId, weekNum)[0] ?? null;
+  const topScorer = (await getTopPerformers(seasonId, weekNum))[0] ?? null;
   const biggestBust = awards.find((a) => a.type === "BIGGEST_BUST") ?? null;
   const seasonYear =
     getSeasons().find((s) => s.id === seasonId)?.year ?? new Date().getFullYear();
@@ -90,7 +92,7 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
           <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>
             {results.map((m) => (
               <StaggerItem key={m.id}>
-                <MatchupCard matchup={m} tag={m.tag} />
+                <MatchupCard matchup={m} tag={m.tag} revealed={revealed} />
               </StaggerItem>
             ))}
           </Stagger>

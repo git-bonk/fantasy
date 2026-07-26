@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { AliasTag } from "@/components/cards/AliasTag";
 import { MatchupTagBadge } from "@/components/cards/MatchupTagBadge";
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
@@ -17,9 +18,10 @@ interface TeamSideProps {
   score: number;
   isWinner: boolean;
   isTie: boolean;
+  revealed: boolean;
 }
 
-function TeamSide({ name, abbrev, color, score, isWinner, isTie }: TeamSideProps) {
+function TeamSide({ name, abbrev, color, score, isWinner, isTie, revealed }: TeamSideProps) {
   return (
     <div
       className={cn(
@@ -38,14 +40,18 @@ function TeamSide({ name, abbrev, color, score, isWinner, isTie }: TeamSideProps
         {abbrev}
       </span>
       <div className="min-w-0 flex-1">
-        <p
-          className={cn(
-            "truncate text-sm font-semibold",
-            isWinner ? "text-foreground" : "text-zinc-400"
-          )}
-        >
-          {name}
-        </p>
+        {revealed ? (
+          <p
+            className={cn(
+              "truncate text-sm font-semibold",
+              isWinner ? "text-foreground" : "text-zinc-400"
+            )}
+          >
+            {name}
+          </p>
+        ) : (
+          <AliasTag label={name} />
+        )}
         <p className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">
           {isWinner ? "Winner" : isTie ? "Tie" : "\u00a0"}
         </p>
@@ -170,10 +176,11 @@ interface MatchupCardProps {
   tag?: MatchupTag | null;
   rosters?: MatchupRosters | null;
   autoOpenOnDesktop?: boolean;
+  revealed: boolean;
   className?: string;
 }
 
-export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, className }: MatchupCardProps) {
+export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, revealed, className }: MatchupCardProps) {
   const m = matchup;
   const isTie = m.winner_team_id === null;
   const awayWins = !isTie && m.winner_team_id === m.aid;
@@ -195,6 +202,7 @@ export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, 
         score={m.away_score}
         isWinner={awayWins}
         isTie={isTie}
+        revealed={revealed}
       />
       <TeamSide
         name={m.hname}
@@ -203,6 +211,7 @@ export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, 
         score={m.home_score}
         isWinner={homeWins}
         isTie={isTie}
+        revealed={revealed}
       />
     </>
   );

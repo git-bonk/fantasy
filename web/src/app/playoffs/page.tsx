@@ -1,8 +1,9 @@
 import { Crown } from "lucide-react";
-import { getMaxRegularWeek, getPlayoffStandings, getPlayoffBracket, getSeasons, getStreaks } from "@/lib/queries";
+import { getMaxRegularWeek, getPlayoffStandings, getPlayoffBracket, getSeasonSettings, getStreaks } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
 import { Bracket } from "@/components/playoffs/Bracket";
+import { PlayoffFormatCard } from "@/components/playoffs/PlayoffFormatCard";
 import { WeekSelector } from "@/components/WeekSelector";
 import { Reveal } from "@/components/motion/Reveal";
 import type { BracketGameRow, TeamStreak } from "@/lib/types";
@@ -43,23 +44,16 @@ export default async function PlayoffsPage({
   const maxRegular = getMaxRegularWeek(seasonId);
   const week = Math.min(Math.max(ctx.weekNum || maxRegular, 1), maxRegular);
 
-  const standings = getPlayoffStandings(seasonId, week);
-  const bracket = getPlayoffBracket(seasonId);
+  const standings = await getPlayoffStandings(seasonId, week);
+  const bracket = await getPlayoffBracket(seasonId);
   const champion = findChampion(bracket);
   const streaks = new Map<number, TeamStreak>(
-    getStreaks(seasonId).map((s) => [s.team_id, { streak: s.streak, type: s.type }])
+    (await getStreaks(seasonId)).map((s) => [s.team_id, { streak: s.streak, type: s.type }])
   );
 
-  const season = getSeasons().find((s) => s.id === seasonId);
-  let playoffTeams = 6;
-  if (season) {
-    try {
-      const settings = JSON.parse(season.settings_json) as { playoff_teams?: number };
-      playoffTeams = settings.playoff_teams ?? 6;
-    } catch {
-      playoffTeams = 6;
-    }
-  }
+  const settings = getSeasonSettings(seasonId);
+  const format = settings.playoff ?? null;
+  const playoffTeams = format?.team_count ?? settings.playoff_teams ?? 6;
 
   return (
     <div className="space-y-8">
@@ -97,6 +91,12 @@ export default async function PlayoffsPage({
               </div>
             </div>
           </div>
+        </Reveal>
+      )}
+
+      {format && (
+        <Reveal delay={0.07}>
+          <PlayoffFormatCard format={format} />
         </Reveal>
       )}
 

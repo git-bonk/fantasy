@@ -49,7 +49,7 @@ function StatChip({ label, children }: StatChipProps) {
 export default async function RivalryPage({ searchParams }: RivalryPageProps) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
-  const teams = getTeams(seasonId);
+  const teams = await getTeams(seasonId);
   const validIds = teams.map((t) => t.id);
 
   if (validIds.length < 2) {
@@ -68,8 +68,8 @@ export default async function RivalryPage({ searchParams }: RivalryPageProps) {
   if (!validIds.includes(b)) b = validIds[1];
   if (a === b) b = validIds.find((id) => id !== a) ?? b;
 
-  const teamA = getTeam(seasonId, a);
-  const teamB = getTeam(seasonId, b);
+  const teamA = await getTeam(seasonId, a);
+  const teamB = await getTeam(seasonId, b);
   if (!teamA || !teamB) notFound();
 
   const games = getRivalryGames(seasonId, a, b);

@@ -39,15 +39,15 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
   const { id } = await params;
   const teamId = Number(id);
 
-  const team = getTeam(seasonId, teamId);
+  const team = await getTeam(seasonId, teamId);
   if (!team) notFound();
 
   const record = getTeamRecord(seasonId, teamId);
   const sos = getTeamSos(seasonId, teamId);
   const pointsByWeek = getTeamPointsByWeek(seasonId, teamId);
   const roster = getTeamRoster(seasonId, teamId);
-  const elo = getRankings(seasonId).find((r) => r.id === teamId)?.rating;
-  const teamStreak = getStreaks(seasonId).find((s) => s.team_id === teamId);
+  const elo = (await getRankings(seasonId)).find((r) => r.id === teamId)?.rating;
+  const teamStreak = (await getStreaks(seasonId)).find((s) => s.team_id === teamId);
 
   const starters = roster.filter((r) => r.lineup_slot !== "BN");
   const bench = roster.filter((r) => r.lineup_slot === "BN");

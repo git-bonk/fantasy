@@ -6,12 +6,29 @@ export interface Season {
   created_at: string;
 }
 
+export interface PlayoffFormat {
+  team_count: number;
+  regular_season_weeks: number | null;
+  start_week: number | null;
+  rounds: number;
+  reseeding: boolean;
+  seeding_rule: string | null;
+  round_length_weeks: number;
+  consolation_ladder: boolean;
+  divisions: string[];
+}
+
+export interface SeasonSettings {
+  scoring?: unknown;
+  playoff_teams?: number;
+  playoff?: PlayoffFormat;
+}
+
 export interface Owner {
   id: string;
   display_name: string;
   first_name: string | null;
   last_name: string | null;
-  last_seen_season_id: number | null;
   alias_num: number | null;
 }
 
@@ -25,6 +42,9 @@ export interface Team {
   color: string;
   logo_url: string | null;
   owner_id: string | null;
+  owner_alias_num?: number | null;
+  standing?: number | null;
+  final_standing?: number | null;
 }
 
 export interface LeagueHistoryRow {
@@ -34,6 +54,7 @@ export interface LeagueHistoryRow {
   abbrev: string;
   color: string;
   year: number;
+  owner_alias_num?: number | null;
 }
 
 export interface Week {
@@ -105,6 +126,7 @@ export interface OwnerStandingRow {
   wins: number;
   losses: number;
   ties: number;
+  owner_alias_num?: number | null;
 }
 
 export interface OwnerEloHistoryRow {
@@ -166,6 +188,7 @@ export interface RecordRow {
   player_name: string | null;
   value: number | null;
   detail: string | null;
+  owner_alias_num?: number | null;
 }
 
 export interface RankingRow {
@@ -178,6 +201,7 @@ export interface RankingRow {
   losses: number;
   ties: number;
   points_for: number;
+  owner_alias_num?: number | null;
 }
 
 export interface EloHistoryRow {
@@ -186,6 +210,7 @@ export interface EloHistoryRow {
   name: string;
   color: string;
   rating: number;
+  owner_alias_num?: number | null;
 }
 
 export interface MatchupRow {
@@ -194,6 +219,7 @@ export interface MatchupRow {
   away_score: number;
   winner_team_id: number | null;
   is_playoff: number;
+  playoff_tier?: string;
   hid: number;
   hname: string;
   habb: string;
@@ -202,6 +228,8 @@ export interface MatchupRow {
   aname: string;
   aabb: string;
   acolor: string;
+  h_owner_alias_num?: number | null;
+  a_owner_alias_num?: number | null;
 }
 
 export interface BracketGameRow extends MatchupRow {
@@ -216,6 +244,7 @@ export interface RecapAwardRow {
   player_name: string | null;
   tname: string | null;
   color: string | null;
+  owner_alias_num?: number | null;
 }
 
 export interface LuckRow {
@@ -225,6 +254,7 @@ export interface LuckRow {
   actual_wins: number;
   expected_wins: number;
   luck_score: number;
+  owner_alias_num?: number | null;
 }
 
 export interface TrendRow {
@@ -238,6 +268,7 @@ export interface TeamTrendRow {
   name: string;
   color: string;
   points: number;
+  owner_alias_num?: number | null;
 }
 
 export interface TeamStandingRow {
@@ -253,6 +284,7 @@ export interface TeamStandingRow {
   points_against: number | null;
   playoff_seed: number | null;
   playoff_odds: number | null;
+  owner_alias_num?: number | null;
 }
 
 export interface PlayoffStandingRow {
@@ -266,6 +298,21 @@ export interface PlayoffStandingRow {
   points_for: number;
   playoff_seed: number | null;
   playoff_odds: number | null;
+  owner_alias_num?: number | null;
+}
+
+export interface FinalStandingRow {
+  id: number;
+  name: string;
+  abbrev: string;
+  color: string;
+  final_standing: number | null;
+  standing: number | null;
+  wins: number | null;
+  losses: number | null;
+  ties: number | null;
+  points_for: number | null;
+  owner_alias_num?: number | null;
 }
 
 export interface PlayerRow {
@@ -275,6 +322,7 @@ export interface PlayerRow {
   points: number;
   tname: string;
   color: string;
+  owner_alias_num?: number | null;
 }
 
 export interface SeasonLeaderRow {
@@ -297,6 +345,7 @@ export interface TransactionRow {
   occurred_at: string;
   tname: string | null;
   color: string | null;
+  owner_alias_num?: number | null;
 }
 
 export interface TeamRosterRow {
@@ -336,6 +385,8 @@ export interface PredictMatchupRow {
   aabb: string;
   acolor: string;
   a_elo: number | null;
+  h_owner_alias_num?: number | null;
+  a_owner_alias_num?: number | null;
 }
 
 export type MatchupTag =

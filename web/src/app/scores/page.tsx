@@ -6,6 +6,7 @@ import {
   getMatchups,
   getWeekRosters,
 } from "@/lib/queries";
+import { getRevealState } from "@/lib/reveal";
 import { resolveSeason } from "@/lib/resolve-season";
 import type { WeekRosterRow } from "@/lib/types";
 
@@ -17,7 +18,8 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
   const ctx = await resolveSeason(searchParams);
   const { seasonId, weekNum, weeks, maxWeek } = ctx;
 
-  const matchups = getMatchups(seasonId, weekNum);
+  const matchups = await getMatchups(seasonId, weekNum);
+  const revealed = await getRevealState();
   const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
 
   const rostersByTeam = new Map<number, WeekRosterRow[]>();
@@ -48,6 +50,7 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
               <MatchupCard
                 matchup={m}
                 autoOpenOnDesktop
+                revealed={revealed}
                 rosters={{
                   home: rostersByTeam.get(m.hid) ?? [],
                   away: rostersByTeam.get(m.aid) ?? [],

@@ -25,7 +25,7 @@ export default async function PredictPage({ searchParams }: PredictPageProps) {
   const { seasonId, weeks, maxWeek } = ctx;
   const weekNum = Math.max(ctx.weekNum, 2);
 
-  const matchups = getPredictData(seasonId, weekNum).filter(
+  const matchups = (await getPredictData(seasonId, weekNum)).filter(
     (m): m is PredictMatchupRow & { h_elo: number; a_elo: number } =>
       m.h_elo !== null && m.a_elo !== null
   );

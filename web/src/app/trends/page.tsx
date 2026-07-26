@@ -22,9 +22,9 @@ export default async function TrendsPage({
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
   const leagueTrend = getLeagueTrend(seasonId);
-  const teamTrends = getTeamTrends(seasonId);
-  const streaks = getStreaks(seasonId);
-  const { teams, matrix } = getHeadToHead(seasonId);
+  const teamTrends = await getTeamTrends(seasonId);
+  const streaks = await getStreaks(seasonId);
+  const { teams, matrix } = await getHeadToHead(seasonId);
 
   const leagueAvg = leagueTrend.map((t) => ({
     week: t.week_num,

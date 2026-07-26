@@ -40,3 +40,14 @@ A beautiful, data-rich dashboard for a personal 12-team ESPN fantasy football le
   (regressed carryover), luck, awards, SOS, Monte-Carlo playoff odds, records
 - Weekly cron ingest (Monday 06:00)
 - Docker Compose deploy with Cloudflare Tunnel (HTTPS, no exposed ports)
+
+### Owner/team obfuscation
+- Site-wide identity obfuscation, locked by default (no exempt page); NFL player names stay public
+- While locked, real owner names + ESPN owner ids + team names/abbrevs are never sent to the client
+  (absent from DOM/inspect) — enforced by a server-only query transform, not bypassable client-side
+- Neutral aliases `Owner N` / `Team N`; number = `owners.alias_num`, a team inherits its owner's
+  number; assigned idempotently by `assign_owner_aliases()` (sorted(owner_id), from max+1)
+- Passcode-gated reveal (`REVEAL_PASSCODE`): HMAC-signed HttpOnly `unlocked` + `reveal` cookies
+  (`REVEAL_SECRET`) via `unlock()` / `setReveal()`; `getRevealState()` is true only when unlocked
+  and the toggle is on; site-wide `RevealToggle` in the Topbar, client follows with `router.refresh()`
+- Env wired in `web/.env.example` + `docker-compose.yml`

@@ -8,6 +8,7 @@ A team's matchup score always equals the sum of its starter roster points.
 from __future__ import annotations
 
 import random
+from dataclasses import replace
 from datetime import date, timedelta
 
 from .models import (
@@ -284,11 +285,15 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
             wins[m.home_team_id] += 1
         elif m.away_score > m.home_score:
             wins[m.away_team_id] += 1
-    seeds = sorted(team_ids, key=lambda t: (wins[t], pf[t]), reverse=True)[:6]
+    all_ranked = sorted(team_ids, key=lambda t: (wins[t], pf[t]), reverse=True)
+    standing_map = {t: i + 1 for i, t in enumerate(all_ranked)}
+    seeds = all_ranked[:6]
     seed_rank = {t: i + 1 for i, t in enumerate(seeds)}
 
     # --- Playoffs: weeks 15 (QF), 16 (SF), 17 (Final + 3rd) ---
-    def playoff_week(week_num: int, label: str, pairs: list[tuple[int, int]]) -> dict[int, int]:
+    def playoff_week(
+        week_num: int, label: str, pairs: list[tuple[int, int]], tiers: list[str]
+    ) -> dict[int, int]:
         s, e = _week_dates(season_start, week_num)
         weeks.append(WeekInfo(week_num, label, s, e, True))
         winners: dict[int, int] = {}  # game index -> winner
@@ -314,21 +319,43 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
                         sb = round(sb - 0.1, 1)
                         break
             winners[i] = a if sa > sb else b
-            matchups.append(Matchup(week_num, a, b, round(sa, 1), round(sb, 1), True))
+            matchups.append(Matchup(week_num, a, b, round(sa, 1), round(sb, 1), True, tiers[i]))
         return winners
 
     s3, s4, s5, s6 = seeds[2], seeds[3], seeds[4], seeds[5]
-    qf = playoff_week(15, "Quarterfinals", [(s3, s6), (s4, s5)])
+    qf_pairs = [(s3, s6), (s4, s5)]
+    qf = playoff_week(15, "Quarterfinals", qf_pairs, ["WINNERS_BRACKET", "WINNERS_BRACKET"])
     qf_winners = [qf[0], qf[1]]
+    qf_losers = [b if qf[i] == a else a for i, (a, b) in enumerate(qf_pairs)]
     # Semifinals: #1 vs lowest remaining seed, #2 vs the other
     sf_pairs = [
         (seeds[0], max(qf_winners, key=lambda t: seed_rank[t])),
         (seeds[1], min(qf_winners, key=lambda t: seed_rank[t])),
     ]
-    sf = playoff_week(16, "Semifinals", sf_pairs)
+    sf = playoff_week(16, "Semifinals", sf_pairs, ["WINNERS_BRACKET", "WINNERS_BRACKET"])
     sf_winners = [sf[0], sf[1]]
     sf_losers = [b if sf[i] == a else a for i, (a, b) in enumerate(sf_pairs)]
-    playoff_week(17, "Championship", [(sf_winners[0], sf_winners[1]), (sf_losers[0], sf_losers[1])])
+    champ_pairs = [(sf_winners[0], sf_winners[1]), (sf_losers[0], sf_losers[1])]
+    champ = playoff_week(
+        17, "Championship", champ_pairs, ["WINNERS_BRACKET", "WINNERS_CONSOLATION_LADDER"]
+    )
+
+    final_standing_map: dict[int, int] = {champ[0]: 1, champ[1]: 3}
+    final_standing_map[next(t for t in sf_winners if t != champ[0])] = 2
+    final_standing_map[next(t for t in sf_losers if t != champ[1])] = 4
+    for i, t in enumerate(qf_losers):
+        final_standing_map[t] = 5 + i
+    rest = [t for t in all_ranked if t not in final_standing_map]
+    for i, t in enumerate(rest):
+        final_standing_map[t] = 7 + i
+
+    teams = [
+        replace(
+            t, standing=standing_map[t.espn_team_id],
+            final_standing=final_standing_map[t.espn_team_id],
+        )
+        for t in teams
+    ]
 
     # --- Transactions ---
     transactions = _make_transactions(rng, team_ids, rosters_by_team, season_start)
@@ -336,7 +363,22 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
     return SeasonData(
         year=year,
         league_id=league_id,
-        settings={"scoring": "PPR", "playoff_teams": 6, "roster": "sample"},
+        settings={
+            "scoring": "PPR",
+            "playoff_teams": 6,
+            "roster": "sample",
+            "playoff": {
+                "team_count": 6,
+                "regular_season_weeks": 14,
+                "start_week": 15,
+                "rounds": 3,
+                "reseeding": False,
+                "seeding_rule": "TOTAL_POINTS_SCORED",
+                "round_length_weeks": 1,
+                "consolation_ladder": True,
+                "divisions": ["League Standings"],
+            },
+        },
         teams=teams,
         owners=owners,
         weeks=weeks,

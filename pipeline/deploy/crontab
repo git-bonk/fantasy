@@ -1,6 +1,7 @@
 # Fantasy NFL weekly ingest — refreshes the shared SQLite DB from ESPN.
 # Runs every Monday at 06:00. Sources the credentials persisted by entrypoint.sh.
+# Set INGEST_ENABLED=0 in .env to pause the automatic refresh (default: enabled).
 SHELL=/bin/sh
 PATH=/usr/local/bin:/usr/bin:/bin
 
-0 6 * * 1 . /etc/fantasynfl.env; fantasynfl ingest >> /var/log/fantasynfl.log 2>&1
+0 6 * * 1 . /etc/fantasynfl.env; [ "${INGEST_ENABLED:-1}" = "1" ] && fantasynfl ingest >> /var/log/fantasynfl.log 2>&1

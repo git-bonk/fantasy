@@ -61,8 +61,11 @@ function computeTag(m: PredictMatchupRow, ctx: TagContext): MatchupTag | null {
   return null;
 }
 
-export function getRecapMatchups(seasonId: number, weekNum: number): RecapMatchupRow[] {
-  const matchups = getPredictData(seasonId, weekNum);
+export async function getRecapMatchups(
+  seasonId: number,
+  weekNum: number
+): Promise<RecapMatchupRow[]> {
+  const matchups = await getPredictData(seasonId, weekNum);
   if (matchups.length === 0) return [];
 
   const allScores = matchups.flatMap((m) => [m.home_score, m.away_score]);

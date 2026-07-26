@@ -36,7 +36,7 @@ export default async function RecordsPage({
 }) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
-  const records = getRecords();
+  const records = await getRecords();
   const groups = groupByCategory(records);
 
   return (
@@ -60,7 +60,7 @@ export default async function RecordsPage({
         ))}
       </div>
 
-      <ShameCorner items={getShameData(seasonId)} />
+      <ShameCorner items={await getShameData(seasonId)} />
     </div>
   );
 }

@@ -136,6 +136,8 @@ class ESPNClient:
                     owners_by_id.setdefault(owner.owner_id, owner)
                     owner_id = owner.owner_id
                     owner_name = owner.display_name or ""
+            standing = int(getattr(t, "standing", 0) or 0) or None
+            final_standing = int(getattr(t, "final_standing", 0) or 0) or None
             teams.append(
                 Team(
                     espn_team_id=t.team_id,
@@ -145,6 +147,8 @@ class ESPNClient:
                     color=_PALETTE[i % len(_PALETTE)],
                     logo_url=getattr(t, "logo_url", None),
                     owner_id=owner_id,
+                    standing=standing,
+                    final_standing=final_standing,
                 )
             )
         owners = list(owners_by_id.values())
@@ -167,9 +171,7 @@ class ESPNClient:
         if not boxes:
             return None
 
-        is_playoff = any(
-            (getattr(b, "playoff_tier_type", None) or "NONE") != "NONE" for b in boxes
-        )
+        is_playoff = any(getattr(b, "is_playoff", False) for b in boxes)
         label = f"Playoff {week_num}" if is_playoff else f"Week {week_num}"
         week_info = WeekInfo(week_num, label, None, None, is_playoff)
 
@@ -183,7 +185,11 @@ class ESPNClient:
             away_id = b.away_team.team_id
             home_score = float(b.home_score or 0.0)
             away_score = float(b.away_score or 0.0)
-            matchups.append(Matchup(week_num, home_id, away_id, home_score, away_score, is_playoff))
+            box_playoff = bool(getattr(b, "is_playoff", False))
+            tier = getattr(b, "matchup_type", None) or "NONE"
+            matchups.append(
+                Matchup(week_num, home_id, away_id, home_score, away_score, box_playoff, tier)
+            )
             rosters.append(WeekRoster(week_num, home_id, _lineup(b.home_lineup)))
             rosters.append(WeekRoster(week_num, away_id, _lineup(b.away_lineup)))
 
@@ -253,10 +259,38 @@ class ESPNClient:
 
     def get_settings(self) -> dict[str, object]:
         league = self._get_league()
-        return {
-            "scoring": getattr(getattr(league, "settings", None), "scoring_format", "unknown"),
-            "playoff_teams": getattr(getattr(league, "settings", None), "playoff_team_count", 6),
+        s = getattr(league, "settings", None)
+        raw = getattr(s, "_raw_schedule_settings", None) or {}
+        team_count = int(getattr(s, "playoff_team_count", 6) or 6)
+        reg_weeks = getattr(s, "reg_season_count", None)
+        divisions = [d.get("name") for d in raw.get("divisions", []) if isinstance(d, dict)]
+        seeding_rule = raw.get("playoffSeedingRule") or getattr(s, "playoff_seed_tie_rule", None)
+        playoff = {
+            "team_count": team_count,
+            "regular_season_weeks": reg_weeks if isinstance(reg_weeks, int) else None,
+            "start_week": reg_weeks + 1 if isinstance(reg_weeks, int) else None,
+            "rounds": (team_count - 1).bit_length() if team_count > 1 else 0,
+            "reseeding": bool(raw.get("playoffReseed", False)),
+            "seeding_rule": seeding_rule,
+            "round_length_weeks": int(getattr(s, "playoff_matchup_period_length", 1) or 1),
+            "consolation_ladder": not bool(raw.get("consolationLadderDisabled", False)),
+            "divisions": divisions,
         }
+        return {
+            "scoring": getattr(s, "scoring_format", "unknown"),
+            "playoff_teams": team_count,
+            "playoff": playoff,
+        }
+
+    def current_week(self) -> int:
+        """Latest scoring period ESPN reports for this league/year.
+
+        Free once the league is initialized. For an in-progress season this is the
+        current week; for a finished season it is the final week. Used to bound
+        incremental fetches so we never request weeks that do not exist yet.
+        """
+        league = self._get_league()
+        return int(getattr(league, "current_week", 0) or 0)
 
 
 def _lineup(lineup: list[object]) -> list[RosterPlayer]:

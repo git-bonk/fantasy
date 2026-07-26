@@ -13,7 +13,7 @@ export default async function PlayersPage({
   const ctx = await resolveSeason(searchParams);
   const { seasonId, weekNum: week, weeks, maxWeek } = ctx;
 
-  const performers = getTopPerformers(seasonId, week);
+  const performers = await getTopPerformers(seasonId, week);
   const positionLeaders = getPositionLeaders(seasonId);
   const weekLabel = weeks.find((w) => w.week_num === week)?.label ?? `Week ${week}`;
 

@@ -27,7 +27,7 @@ function StatChip({ label, value }: StatChipProps) {
 
 export default async function OwnerDetailPage({ params }: OwnerDetailPageProps) {
   const { ownerId } = await params;
-  const owner = getOwnerStandings().find((o) => o.owner_id === ownerId);
+  const owner = (await getOwnerStandings()).find((o) => o.owner_id === ownerId);
   if (!owner) notFound();
 
   const color = ownerColor(owner.owner_id);
@@ -39,7 +39,7 @@ export default async function OwnerDetailPage({ params }: OwnerDetailPageProps) 
       ? `${owner.wins}-${owner.losses}-${owner.ties}`
       : `${owner.wins}-${owner.losses}`;
 
-  const teamRows = getLeagueHistory().filter((t) => t.owner_id === ownerId);
+  const teamRows = (await getLeagueHistory()).filter((t) => t.owner_id === ownerId);
   const teams = new Map<string, { name: string; abbrev: string; color: string; years: number[] }>();
   for (const row of teamRows) {
     const key = `${row.abbrev}-${row.team_name}`;

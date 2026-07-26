@@ -1,8 +1,10 @@
 import { db } from "./db";
+import { aliasOwner, aliasTeam, getRevealState } from "./reveal";
 import type {
   BracketGameRow,
   EloAtWeekRow,
   EloHistoryRow,
+  FinalStandingRow,
   LeagueHistoryRow,
   LuckRow,
   MatchupRow,
@@ -19,6 +21,7 @@ import type {
   Season,
   SeasonLeaderRow,
   SeasonMatchupRow,
+  SeasonSettings,
   ShameItem,
   SosRow,
   Team,
@@ -34,24 +37,66 @@ import type {
 
 const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
+function maskedTeamName(aliasNum: number | null | undefined): string {
+  return aliasTeam(aliasNum ?? 0);
+}
+
+function maskedTeamAbbrev(aliasNum: number | null | undefined): string {
+  return `T${aliasNum ?? 0}`;
+}
+
+function maskedOwnerName(aliasNum: number | null | undefined): string {
+  return aliasOwner(aliasNum ?? 0);
+}
+
 export function getSeasons(): Season[] {
   return db.prepare("SELECT * FROM seasons ORDER BY year DESC").all() as Season[];
 }
 
-export function getLeagueHistory(): LeagueHistoryRow[] {
-  return db
+export function getSeasonSettings(seasonId: number): SeasonSettings {
+  const row = db
+    .prepare("SELECT settings_json FROM seasons WHERE id = ?")
+    .get(seasonId) as { settings_json: string } | undefined;
+  if (!row) return {};
+  try {
+    return JSON.parse(row.settings_json) as SeasonSettings;
+  } catch {
+    return {};
+  }
+}
+
+export function getPlayoffFormat(seasonId: number) {
+  return getSeasonSettings(seasonId).playoff ?? null;
+}
+
+export async function getLeagueHistory(): Promise<LeagueHistoryRow[]> {
+  const rows = db
     .prepare(
-      `SELECT t.owner_name, t.owner_id, t.name AS team_name, t.abbrev, t.color, s.year
+      `SELECT t.owner_name, t.owner_id, t.name AS team_name, t.abbrev, t.color, s.year,
+              o.alias_num AS owner_alias_num
        FROM teams t JOIN seasons s ON s.id = t.season_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        ORDER BY s.year DESC, t.id`
     )
     .all() as LeagueHistoryRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    owner_name: maskedOwnerName(r.owner_alias_num),
+    owner_id: maskedOwnerName(r.owner_alias_num),
+    team_name: maskedTeamName(r.owner_alias_num),
+    abbrev: maskedTeamAbbrev(r.owner_alias_num),
+  }));
 }
 
-export function getOwnerStandings(): OwnerStandingRow[] {
-  return db
+export async function getOwnerStandings(): Promise<OwnerStandingRow[]> {
+  const rows = db
     .prepare(
       `SELECT o.id AS owner_id, o.display_name, o.first_name, o.last_name,
+              o.alias_num AS owner_alias_num,
               latest.rating AS rating,
               COALESCE(rec.wins, 0) AS wins,
               COALESCE(rec.losses, 0) AS losses,
@@ -89,9 +134,20 @@ export function getOwnerStandings(): OwnerStandingRow[] {
          ) sub
          GROUP BY owner_id
        ) rec ON rec.owner_id = o.id
-       ORDER BY latest.rating DESC`
+        ORDER BY latest.rating DESC`
     )
     .all() as OwnerStandingRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    owner_id: maskedOwnerName(r.owner_alias_num),
+    display_name: maskedOwnerName(r.owner_alias_num),
+    first_name: null,
+    last_name: null,
+  }));
 }
 
 export function getOwnerEloHistory(ownerId: string): OwnerEloHistoryRow[] {
@@ -147,73 +203,130 @@ export function getMaxWeek(seasonId: number): number {
   return row.max_week ?? 17;
 }
 
-export function getRankings(seasonId: number): RankingRow[] {
-  return db
+export async function getRankings(seasonId: number): Promise<RankingRow[]> {
+  const rows = db
     .prepare(
       `SELECT t.id, t.name, t.abbrev, t.color, e.rating,
               COALESCE(ps.wins, 0) AS wins,
               COALESCE(ps.losses, 0) AS losses,
               COALESCE(ps.ties, 0) AS ties,
-              COALESCE(ps.points_for, 0) AS points_for
+              COALESCE(ps.points_for, 0) AS points_for,
+              o.alias_num AS owner_alias_num
        FROM elo_ratings e JOIN teams t ON t.id = e.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        LEFT JOIN playoff_snapshots ps ON ps.team_id = t.id
-         AND ps.season_id = e.season_id AND ps.week_num = e.week_num
+          AND ps.season_id = e.season_id AND ps.week_num = e.week_num
        WHERE e.season_id = ? AND e.week_num = (
-         SELECT MAX(week_num) FROM weeks WHERE season_id = ? AND is_playoff = 0
-       )
-        ORDER BY e.rating DESC`
+          SELECT MAX(week_num) FROM weeks WHERE season_id = ? AND is_playoff = 0
+        )
+         ORDER BY e.rating DESC`
     )
     .all(seasonId, seasonId) as RankingRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+    abbrev: maskedTeamAbbrev(r.owner_alias_num),
+  }));
 }
 
-export function getSeasonPowerRankings(seasonId: number): RankingRow[] {
+export async function getSeasonPowerRankings(seasonId: number): Promise<RankingRow[]> {
   return getRankings(seasonId);
 }
 
-export function getEloHistory(seasonId: number): EloHistoryRow[] {
-  return db
+export async function getEloHistory(seasonId: number): Promise<EloHistoryRow[]> {
+  const rows = db
     .prepare(
-      `SELECT e.week_num, t.id, t.name, t.color, e.rating
+      `SELECT e.week_num, t.id, t.name, t.color, e.rating,
+              o.alias_num AS owner_alias_num
        FROM elo_ratings e JOIN teams t ON t.id = e.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        WHERE e.season_id = ? ORDER BY e.week_num`
     )
     .all(seasonId) as EloHistoryRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+  }));
 }
 
-export function getMatchups(seasonId: number, weekNum: number): MatchupRow[] {
-  return db
+export async function getMatchups(seasonId: number, weekNum: number): Promise<MatchupRow[]> {
+  const rows = db
     .prepare(
       `SELECT m.id, m.home_score, m.away_score, m.winner_team_id, w.is_playoff,
               th.id hid, th.name hname, th.abbrev habb, th.color hcolor,
-              ta.id aid, ta.name aname, ta.abbrev aabb, ta.color acolor
+              oh.alias_num AS h_owner_alias_num,
+              ta.id aid, ta.name aname, ta.abbrev aabb, ta.color acolor,
+              oa.alias_num AS a_owner_alias_num
        FROM matchups m JOIN weeks w ON w.id = m.week_id
        JOIN teams th ON th.id = m.home_team_id
+       LEFT JOIN owners oh ON oh.id = th.owner_id
        JOIN teams ta ON ta.id = m.away_team_id
+       LEFT JOIN owners oa ON oa.id = ta.owner_id
        WHERE w.season_id = ? AND w.week_num = ?`
     )
     .all(seasonId, weekNum) as MatchupRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    hname: maskedTeamName(r.h_owner_alias_num),
+    habb: maskedTeamAbbrev(r.h_owner_alias_num),
+    aname: maskedTeamName(r.a_owner_alias_num),
+    aabb: maskedTeamAbbrev(r.a_owner_alias_num),
+  }));
 }
 
-export function getRecapAwards(seasonId: number, weekNum: number): RecapAwardRow[] {
-  return db
+export async function getRecapAwards(seasonId: number, weekNum: number): Promise<RecapAwardRow[]> {
+  const rows = db
     .prepare(
-      `SELECT a.type, a.value, a.detail, a.player_name, t.name tname, t.color
+      `SELECT a.type, a.value, a.detail, a.player_name, t.name tname, t.color,
+              o.alias_num AS owner_alias_num
        FROM awards a JOIN weeks w ON w.id = a.week_id
        LEFT JOIN teams t ON t.id = a.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        WHERE w.season_id = ? AND w.week_num = ?`
     )
     .all(seasonId, weekNum) as RecapAwardRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    tname: r.tname === null ? null : maskedTeamName(r.owner_alias_num),
+    detail: null,
+  }));
 }
 
-export function getRecapLuck(seasonId: number, weekNum: number): LuckRow[] {
-  return db
+export async function getRecapLuck(seasonId: number, weekNum: number): Promise<LuckRow[]> {
+  const rows = db
     .prepare(
-      `SELECT t.id, t.name, t.color, l.actual_wins, l.expected_wins, l.luck_score
+      `SELECT t.id, t.name, t.color, l.actual_wins, l.expected_wins, l.luck_score,
+              o.alias_num AS owner_alias_num
        FROM luck l JOIN teams t ON t.id = l.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        WHERE l.season_id = ? AND l.week_num = ?
        ORDER BY l.luck_score DESC`
     )
     .all(seasonId, weekNum) as LuckRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+  }));
 }
 
 export function getLeagueTrend(seasonId: number): TrendRow[] {
@@ -233,10 +346,11 @@ export function getLeagueTrend(seasonId: number): TrendRow[] {
     .all(seasonId, seasonId, seasonId) as TrendRow[];
 }
 
-export function getTeamTrends(seasonId: number): TeamTrendRow[] {
-  return db
+export async function getTeamTrends(seasonId: number): Promise<TeamTrendRow[]> {
+  const rows = db
     .prepare(
-      `SELECT w.week_num, t.id team_id, t.name, t.color, sub.points FROM (
+      `SELECT w.week_num, t.id team_id, t.name, t.color, sub.points,
+              o.alias_num AS owner_alias_num FROM (
          SELECT m.week_id, m.home_team_id team_id, m.home_score points FROM matchups m
          JOIN weeks w2 ON w2.id = m.week_id WHERE w2.season_id = ?
          UNION ALL
@@ -245,35 +359,72 @@ export function getTeamTrends(seasonId: number): TeamTrendRow[] {
        ) sub
        JOIN weeks w ON w.id = sub.week_id
        JOIN teams t ON t.id = sub.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        ORDER BY w.week_num`
     )
     .all(seasonId, seasonId) as TeamTrendRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+  }));
 }
 
-export function getTeams(seasonId: number, weekNum?: number): TeamStandingRow[] {
+export async function getTeams(seasonId: number, weekNum?: number): Promise<TeamStandingRow[]> {
   const asOf = weekNum !== undefined ? "AND week_num <= ?" : "";
   const params = weekNum !== undefined ? [weekNum, seasonId] : [seasonId];
-  return db
+  const rows = db
     .prepare(
       `SELECT t.id, t.name, t.abbrev, t.owner_name, t.color, t.logo_url,
               ps.wins, ps.losses, ps.points_for, ps.points_against,
-              ps.playoff_seed, ps.playoff_odds
+              ps.playoff_seed, ps.playoff_odds,
+              o.alias_num AS owner_alias_num
        FROM teams t
+       LEFT JOIN owners o ON o.id = t.owner_id
        LEFT JOIN playoff_snapshots ps ON ps.team_id = t.id
-         AND ps.week_num = (
-           SELECT MAX(week_num) FROM playoff_snapshots
-           WHERE season_id = t.season_id AND team_id = t.id ${asOf}
-         )
+          AND ps.week_num = (
+            SELECT MAX(week_num) FROM playoff_snapshots
+            WHERE season_id = t.season_id AND team_id = t.id ${asOf}
+          )
        WHERE t.season_id = ?
        ORDER BY ps.playoff_seed IS NULL, ps.playoff_seed, ps.points_for DESC`
     )
     .all(...params) as TeamStandingRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+    abbrev: maskedTeamAbbrev(r.owner_alias_num),
+    owner_name: maskedOwnerName(r.owner_alias_num),
+  }));
 }
 
-export function getTeam(seasonId: number, teamId: number): Team | undefined {
-  return db
-    .prepare("SELECT * FROM teams WHERE season_id = ? AND id = ?")
+export async function getTeam(seasonId: number, teamId: number): Promise<Team | undefined> {
+  const row = db
+    .prepare(
+      `SELECT t.*, o.alias_num AS owner_alias_num
+       FROM teams t LEFT JOIN owners o ON o.id = t.owner_id
+       WHERE t.season_id = ? AND t.id = ?`
+    )
     .get(seasonId, teamId) as Team | undefined;
+  if (!row) return undefined;
+
+  const revealed = await getRevealState();
+  if (revealed) return row;
+
+  return {
+    ...row,
+    name: maskedTeamName(row.owner_alias_num),
+    abbrev: maskedTeamAbbrev(row.owner_alias_num),
+    owner_name: maskedOwnerName(row.owner_alias_num),
+    owner_id: maskedOwnerName(row.owner_alias_num),
+  };
 }
 
 export function getTeamSos(seasonId: number, teamId: number): SosRow | undefined {
@@ -348,43 +499,108 @@ export function getTeamRecord(seasonId: number, teamId: number) {
     | undefined;
 }
 
-export function getPlayoffStandings(seasonId: number, weekNum: number): PlayoffStandingRow[] {
-  return db
+export async function getPlayoffStandings(
+  seasonId: number,
+  weekNum: number
+): Promise<PlayoffStandingRow[]> {
+  const rows = db
     .prepare(
       `SELECT t.id, t.name, t.abbrev, t.color, ps.wins, ps.losses, ps.ties, ps.points_for,
-              ps.playoff_seed, ps.playoff_odds
+              ps.playoff_seed, ps.playoff_odds,
+              o.alias_num AS owner_alias_num
        FROM playoff_snapshots ps JOIN teams t ON t.id = ps.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        WHERE ps.season_id = ? AND ps.week_num = ?
        ORDER BY ps.playoff_seed IS NULL, ps.playoff_seed`
     )
     .all(seasonId, weekNum) as PlayoffStandingRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+    abbrev: maskedTeamAbbrev(r.owner_alias_num),
+  }));
 }
 
-export function getPlayoffBracket(seasonId: number): BracketGameRow[] {
-  return db
+export async function getPlayoffBracket(seasonId: number): Promise<BracketGameRow[]> {
+  const rows = db
     .prepare(
       `SELECT m.id, m.home_score, m.away_score, m.winner_team_id, w.is_playoff,
-              w.week_num, w.label,
+              m.playoff_tier, w.week_num, w.label,
               th.id hid, th.name hname, th.abbrev habb, th.color hcolor,
-              ta.id aid, ta.name aname, ta.abbrev aabb, ta.color acolor
+              oh.alias_num AS h_owner_alias_num,
+              ta.id aid, ta.name aname, ta.abbrev aabb, ta.color acolor,
+              oa.alias_num AS a_owner_alias_num
        FROM matchups m JOIN weeks w ON w.id = m.week_id
        JOIN teams th ON th.id = m.home_team_id
+       LEFT JOIN owners oh ON oh.id = th.owner_id
        JOIN teams ta ON ta.id = m.away_team_id
+       LEFT JOIN owners oa ON oa.id = ta.owner_id
        WHERE w.season_id = ? AND m.is_playoff = 1
        ORDER BY w.week_num`
     )
     .all(seasonId) as BracketGameRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    hname: maskedTeamName(r.h_owner_alias_num),
+    habb: maskedTeamAbbrev(r.h_owner_alias_num),
+    aname: maskedTeamName(r.a_owner_alias_num),
+    aabb: maskedTeamAbbrev(r.a_owner_alias_num),
+  }));
 }
 
-export function getTopPerformers(seasonId: number, weekNum: number): PlayerRow[] {
-  return db
+export async function getFinalStandings(seasonId: number): Promise<FinalStandingRow[]> {
+  const rows = db
     .prepare(
-      `SELECT r.player_name, r.position, r.nfl_team, r.points, t.name tname, t.color
+      `SELECT t.id, t.name, t.abbrev, t.color, t.final_standing, t.standing,
+              ps.wins, ps.losses, ps.ties, ps.points_for,
+              o.alias_num AS owner_alias_num
+       FROM teams t
+       LEFT JOIN owners o ON o.id = t.owner_id
+       LEFT JOIN playoff_snapshots ps ON ps.team_id = t.id
+         AND ps.week_num = (SELECT MAX(week_num) FROM playoff_snapshots
+                            WHERE season_id = t.season_id AND team_id = t.id)
+       WHERE t.season_id = ?
+       ORDER BY t.final_standing IS NULL, t.final_standing`
+    )
+    .all(seasonId) as FinalStandingRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    name: maskedTeamName(r.owner_alias_num),
+    abbrev: maskedTeamAbbrev(r.owner_alias_num),
+  }));
+}
+
+export async function getTopPerformers(seasonId: number, weekNum: number): Promise<PlayerRow[]> {
+  const rows = db
+    .prepare(
+      `SELECT r.player_name, r.position, r.nfl_team, r.points, t.name tname, t.color,
+              o.alias_num AS owner_alias_num
        FROM rosters r JOIN teams t ON t.id = r.team_id JOIN weeks w ON w.id = r.week_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        WHERE w.season_id = ? AND w.week_num = ? AND r.lineup_slot != 'BN'
        ORDER BY r.points DESC LIMIT 25`
     )
     .all(seasonId, weekNum) as PlayerRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    tname: maskedTeamName(r.owner_alias_num),
+  }));
 }
 
 export function getPositionLeaders(seasonId: number, limit = 5): PositionLeaders[] {
@@ -412,38 +628,85 @@ export function getPositionLeaders(seasonId: number, limit = 5): PositionLeaders
   }));
 }
 
-export function getTransactions(seasonId: number): TransactionRow[] {
-  return db
+export async function getTransactions(seasonId: number): Promise<TransactionRow[]> {
+  const rows = db
     .prepare(
-      `SELECT tx.type, tx.player_name, tx.bid_amount, tx.occurred_at, t.name tname, t.color
+      `SELECT tx.type, tx.player_name, tx.bid_amount, tx.occurred_at, t.name tname, t.color,
+              o.alias_num AS owner_alias_num
        FROM transactions tx LEFT JOIN teams t ON t.id = tx.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
        WHERE tx.season_id = ? ORDER BY tx.occurred_at DESC`
     )
     .all(seasonId) as TransactionRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    tname: r.tname === null ? null : maskedTeamName(r.owner_alias_num),
+  }));
 }
 
-export function getRecords(): RecordRow[] {
-  return db
-    .prepare("SELECT * FROM records ORDER BY category, rank")
-    .all() as RecordRow[];
+export async function getRecords(): Promise<RecordRow[]> {
+  const rows = db
+    .prepare(
+      `SELECT r.*, t.name AS record_team_name, o.alias_num AS owner_alias_num
+       FROM records r
+       LEFT JOIN teams t ON t.id = r.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
+       ORDER BY r.category, r.rank`
+    )
+    .all() as (RecordRow & { record_team_name: string | null })[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => {
+    const { record_team_name, ...rest } = r;
+    if (record_team_name === null) return rest;
+    const detail =
+      rest.detail !== null && rest.detail.startsWith(record_team_name)
+        ? maskedTeamName(r.owner_alias_num) + rest.detail.slice(record_team_name.length)
+        : rest.detail;
+    return { ...rest, detail };
+  });
 }
 
-export function getPredictData(seasonId: number, weekNum: number): PredictMatchupRow[] {
-  return db
+export async function getPredictData(
+  seasonId: number,
+  weekNum: number
+): Promise<PredictMatchupRow[]> {
+  const rows = db
     .prepare(
       `SELECT m.id, m.home_score, m.away_score, m.winner_team_id,
               th.id hid, th.name hname, th.abbrev habb, th.color hcolor,
+              oh.alias_num AS h_owner_alias_num,
               eh.rating h_elo,
               ta.id aid, ta.name aname, ta.abbrev aabb, ta.color acolor,
+              oa.alias_num AS a_owner_alias_num,
               ea.rating a_elo
        FROM matchups m JOIN weeks w ON w.id = m.week_id
        JOIN teams th ON th.id = m.home_team_id
+       LEFT JOIN owners oh ON oh.id = th.owner_id
        JOIN teams ta ON ta.id = m.away_team_id
+       LEFT JOIN owners oa ON oa.id = ta.owner_id
        LEFT JOIN elo_ratings eh ON eh.season_id = ? AND eh.team_id = m.home_team_id AND eh.week_num = ? - 1
        LEFT JOIN elo_ratings ea ON ea.season_id = ? AND ea.team_id = m.away_team_id AND ea.week_num = ? - 1
        WHERE w.season_id = ? AND w.week_num = ?`
     )
     .all(seasonId, weekNum, seasonId, weekNum, seasonId, weekNum) as PredictMatchupRow[];
+
+  const revealed = await getRevealState();
+  if (revealed) return rows;
+
+  return rows.map((r) => ({
+    ...r,
+    hname: maskedTeamName(r.h_owner_alias_num),
+    habb: maskedTeamAbbrev(r.h_owner_alias_num),
+    aname: maskedTeamName(r.a_owner_alias_num),
+    aabb: maskedTeamAbbrev(r.a_owner_alias_num),
+  }));
 }
 
 export function getSeasonMatchups(seasonId: number): SeasonMatchupRow[] {
@@ -477,7 +740,8 @@ export function getRivalryGames(seasonId: number, a: number, b: number): Rivalry
     .all(seasonId, a, b, b, a) as RivalryGameRow[];
 }
 
-export function getStreaks(seasonId: number, weekNum?: number) {
+export async function getStreaks(seasonId: number, weekNum?: number) {
+  const revealed = await getRevealState();
   const asOf = weekNum !== undefined ? "AND w.week_num <= ?" : "";
   const params = weekNum !== undefined ? [seasonId, weekNum] : [seasonId];
   const matchups = db
@@ -494,10 +758,17 @@ export function getStreaks(seasonId: number, weekNum?: number) {
     winner_team_id: number | null;
   }[];
 
-  const teams = db.prepare("SELECT id, name, color FROM teams WHERE season_id = ?").all(seasonId) as {
+  const teams = db
+    .prepare(
+      `SELECT t.id, t.name, t.color, o.alias_num AS owner_alias_num
+       FROM teams t LEFT JOIN owners o ON o.id = t.owner_id
+       WHERE t.season_id = ?`
+    )
+    .all(seasonId) as {
     id: number;
     name: string;
     color: string;
+    owner_alias_num: number | null;
   }[];
 
   const teamMap = new Map(teams.map((t) => [t.id, t]));
@@ -529,10 +800,11 @@ export function getStreaks(seasonId: number, weekNum?: number) {
     }
 
     if (currentType && currentStreak >= 2) {
+      const info = teamMap.get(team.id);
       streaks.push({
         team_id: team.id,
-        name: teamMap.get(team.id)?.name ?? "",
-        color: teamMap.get(team.id)?.color ?? "#888",
+        name: revealed ? info?.name ?? "" : maskedTeamName(info?.owner_alias_num),
+        color: info?.color ?? "#888",
         streak: currentStreak,
         type: currentType,
       });
@@ -542,7 +814,8 @@ export function getStreaks(seasonId: number, weekNum?: number) {
   return streaks.sort((a, b) => b.streak - a.streak);
 }
 
-export function getHeadToHead(seasonId: number) {
+export async function getHeadToHead(seasonId: number) {
+  const revealed = await getRevealState();
   const matchups = db
     .prepare(
       `SELECT m.home_team_id, m.away_team_id, m.winner_team_id
@@ -555,9 +828,30 @@ export function getHeadToHead(seasonId: number) {
     winner_team_id: number | null;
   }[];
 
-  const teams = db
-    .prepare("SELECT id, name, abbrev, color FROM teams WHERE season_id = ? ORDER BY id")
-    .all(seasonId) as { id: number; name: string; abbrev: string; color: string }[];
+  const teamRows = db
+    .prepare(
+      `SELECT t.id, t.name, t.abbrev, t.color, o.alias_num AS owner_alias_num
+       FROM teams t LEFT JOIN owners o ON o.id = t.owner_id
+       WHERE t.season_id = ? ORDER BY t.id`
+    )
+    .all(seasonId) as {
+    id: number;
+    name: string;
+    abbrev: string;
+    color: string;
+    owner_alias_num: number | null;
+  }[];
+
+  const teams = teamRows.map((t) =>
+    revealed
+      ? { id: t.id, name: t.name, abbrev: t.abbrev, color: t.color }
+      : {
+          id: t.id,
+          name: maskedTeamName(t.owner_alias_num),
+          abbrev: maskedTeamAbbrev(t.owner_alias_num),
+          color: t.color,
+        }
+  );
 
   const matrix = new Map<string, { wins: number; losses: number }>();
 
@@ -594,21 +888,38 @@ interface ShameMatchupRow {
   aname: string;
   aabb: string;
   acolor: string;
+  h_owner_alias_num: number | null;
+  a_owner_alias_num: number | null;
 }
 
-export function getShameData(seasonId: number): ShameItem[] {
-  const matchups = db
+export async function getShameData(seasonId: number): Promise<ShameItem[]> {
+  const revealed = await getRevealState();
+  const rawMatchups = db
     .prepare(
       `SELECT m.id, w.week_num, m.home_team_id, m.away_team_id, m.home_score, m.away_score,
               m.winner_team_id, th.name hname, th.abbrev habb, th.color hcolor,
-              ta.name aname, ta.abbrev aabb, ta.color acolor
+              oh.alias_num AS h_owner_alias_num,
+              ta.name aname, ta.abbrev aabb, ta.color acolor,
+              oa.alias_num AS a_owner_alias_num
        FROM matchups m JOIN weeks w ON w.id = m.week_id
        JOIN teams th ON th.id = m.home_team_id
+       LEFT JOIN owners oh ON oh.id = th.owner_id
        JOIN teams ta ON ta.id = m.away_team_id
+       LEFT JOIN owners oa ON oa.id = ta.owner_id
        WHERE w.season_id = ?
        ORDER BY w.week_num`
     )
     .all(seasonId) as ShameMatchupRow[];
+
+  const matchups = revealed
+    ? rawMatchups
+    : rawMatchups.map((m) => ({
+        ...m,
+        hname: maskedTeamName(m.h_owner_alias_num),
+        habb: maskedTeamAbbrev(m.h_owner_alias_num),
+        aname: maskedTeamName(m.a_owner_alias_num),
+        aabb: maskedTeamAbbrev(m.a_owner_alias_num),
+      }));
 
   if (matchups.length === 0) return [];
 
@@ -724,7 +1035,7 @@ export function getShameData(seasonId: number): ShameItem[] {
     });
   }
 
-  const luck = getRecapLuck(seasonId, getMaxRegularWeek(seasonId));
+  const luck = await getRecapLuck(seasonId, getMaxRegularWeek(seasonId));
   const unluckiest = luck.reduce<LuckRow | null>(
     (min, l) => (min === null || l.luck_score < min.luck_score ? l : min),
     null

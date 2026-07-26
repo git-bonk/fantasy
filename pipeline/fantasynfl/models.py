@@ -27,6 +27,8 @@ class Team:
     color: str
     logo_url: str | None = None
     owner_id: str | None = None
+    standing: int | None = None
+    final_standing: int | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,7 @@ class Matchup:
     home_score: float
     away_score: float
     is_playoff: bool
+    playoff_tier: str = "NONE"
 
 
 @dataclass

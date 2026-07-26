@@ -10,8 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
+import { AliasTag } from "@/components/cards/AliasTag";
 import { AnimatedRow, Reveal } from "@/components/motion/Reveal";
 import { getOwnerStandings } from "@/lib/queries";
+import { getRevealState } from "@/lib/reveal";
 import { fmtPct, initials, ownerColor } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +24,9 @@ function rankClasses(i: number): string {
   return "bg-zinc-800 text-zinc-400";
 }
 
-export default function AllTimePage() {
-  const standings = getOwnerStandings();
+export default async function AllTimePage() {
+  const standings = await getOwnerStandings();
+  const revealed = await getRevealState();
 
   return (
     <div className="space-y-6">
@@ -85,20 +88,32 @@ export default function AllTimePage() {
                           </span>
                         </TableCell>
                         <TableCell className="py-3">
-                          <Link
-                            href={`/all-time/${encodeURIComponent(o.owner_id)}`}
-                            className="group flex items-center gap-2.5"
-                          >
-                            <span
-                              className="flex h-8 w-8 items-center justify-center rounded-lg font-display text-[10px] font-bold"
-                              style={{ backgroundColor: `${color}1f`, color }}
+                          {revealed ? (
+                            <Link
+                              href={`/all-time/${encodeURIComponent(o.owner_id)}`}
+                              className="group flex items-center gap-2.5"
                             >
-                              {initials(o.display_name)}
-                            </span>
-                            <span className="font-semibold transition-colors group-hover:text-emerald-400">
-                              {o.display_name}
-                            </span>
-                          </Link>
+                              <span
+                                className="flex h-8 w-8 items-center justify-center rounded-lg font-display text-[10px] font-bold"
+                                style={{ backgroundColor: `${color}1f`, color }}
+                              >
+                                {initials(o.display_name)}
+                              </span>
+                              <span className="font-semibold transition-colors group-hover:text-emerald-400">
+                                {o.display_name}
+                              </span>
+                            </Link>
+                          ) : (
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className="flex h-8 w-8 items-center justify-center rounded-lg font-display text-[10px] font-bold"
+                                style={{ backgroundColor: `${color}1f`, color }}
+                              >
+                                {initials(o.display_name)}
+                              </span>
+                              <AliasTag label={o.display_name} />
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="py-3 text-right font-mono text-base font-bold tabular-nums">
                           {Math.round(o.rating)}

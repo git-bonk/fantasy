@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AliasTag } from "@/components/cards/AliasTag";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import { cn } from "@/lib/utils";
 import { fmtPct, fmtPts, fmtRecord } from "@/lib/format";
@@ -9,10 +10,11 @@ import type { TeamStandingRow, TeamStreak } from "@/lib/types";
 interface TeamCardProps {
   team: TeamStandingRow;
   streak?: TeamStreak;
+  revealed: boolean;
   className?: string;
 }
 
-export function TeamCard({ team, streak, className }: TeamCardProps) {
+export function TeamCard({ team, streak, revealed, className }: TeamCardProps) {
   const inPlayoffs = team.playoff_seed !== null;
 
   return (
@@ -33,10 +35,18 @@ export function TeamCard({ team, streak, className }: TeamCardProps) {
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <p className="truncate font-display text-sm font-semibold">{team.name}</p>
+                {revealed ? (
+                  <p className="truncate font-display text-sm font-semibold">{team.name}</p>
+                ) : (
+                  <AliasTag label={team.name} />
+                )}
                 {streak && <StreakBadge streak={streak.streak} type={streak.type} />}
               </div>
-              <p className="truncate text-xs text-zinc-500">{team.owner_name}</p>
+              {revealed ? (
+                <p className="truncate text-xs text-zinc-500">{team.owner_name}</p>
+              ) : (
+                <AliasTag label={team.owner_name} className="mt-0.5" />
+              )}
             </div>
             {inPlayoffs ? (
               <Badge
