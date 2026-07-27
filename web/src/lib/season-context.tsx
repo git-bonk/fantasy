@@ -64,21 +64,23 @@ export function SeasonProvider({ children }: { children: ReactNode }) {
   );
 
   const setYear = useCallback(
-    (newYear: number, maxWeek: number) => {
+    async (newYear: number, maxWeek: number) => {
       setCookie("fantasy_year", String(newYear));
       setCookie("fantasy_week", String(maxWeek));
-      router.replace(`${pathname}?year=${newYear}&week=${maxWeek}`, { scroll: false });
+      await router.replace(`${pathname}?year=${newYear}&week=${maxWeek}`, { scroll: false });
+      router.refresh();
     },
     [pathname, router]
   );
 
   const setWeek = useCallback(
-    (newWeek: number) => {
+    async (newWeek: number) => {
       setCookie("fantasy_week", String(newWeek));
       const params = new URLSearchParams(window.location.search);
       params.set("week", String(newWeek));
       if (yearParam) params.set("year", yearParam);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      await router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      router.refresh();
     },
     [pathname, router, yearParam]
   );
