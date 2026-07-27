@@ -1,5 +1,4 @@
 import { PageHeader } from "@/components/PageHeader";
-import { WeekSelector } from "@/components/WeekSelector";
 import { MatchupCard } from "@/components/cards/MatchupCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
@@ -16,7 +15,7 @@ interface ScoresPageProps {
 
 export default async function ScoresPage({ searchParams }: ScoresPageProps) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum, weeks, maxWeek } = ctx;
+  const { seasonId, weekNum, weeks } = ctx;
 
   const matchups = await getMatchups(seasonId, weekNum);
   const revealed = await getRevealState();
@@ -34,7 +33,6 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
       <PageHeader
         title="Scores"
         subtitle={weekLabel}
-        action={<WeekSelector weeks={weeks} current={weekNum} />}
       />
 
       {matchups.length === 0 ? (

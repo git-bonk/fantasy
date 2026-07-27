@@ -4,7 +4,6 @@ import { resolveSeason } from "@/lib/resolve-season";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
 import { Bracket } from "@/components/playoffs/Bracket";
 import { PlayoffFormatCard } from "@/components/playoffs/PlayoffFormatCard";
-import { WeekSelector } from "@/components/WeekSelector";
 import { Reveal } from "@/components/motion/Reveal";
 import type { BracketGameRow, TeamStreak } from "@/lib/types";
 
@@ -40,7 +39,6 @@ export default async function PlayoffsPage({
 }) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
-  const weeks = ctx.weeks;
   const maxRegular = getMaxRegularWeek(seasonId);
   const week = Math.min(Math.max(ctx.weekNum || maxRegular, 1), maxRegular);
 
@@ -102,10 +100,7 @@ export default async function PlayoffsPage({
 
       <Reveal delay={0.1}>
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold tracking-tight">Standings</h2>
-            <WeekSelector weeks={weeks} current={week} />
-          </div>
+          <h2 className="font-display text-xl font-semibold tracking-tight">Standings</h2>
           <StandingsTable standings={standings} playoffTeams={playoffTeams} streaks={streaks} />
         </section>
       </Reveal>

@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
-import { WeekSelector } from "@/components/WeekSelector";
 import { AwardBadge } from "@/components/cards/AwardBadge";
 import { LuckMeter } from "@/components/cards/LuckMeter";
 import { MatchupCard } from "@/components/cards/MatchupCard";
@@ -23,7 +22,7 @@ interface RecapPageProps {
 
 export default async function RecapPage({ searchParams }: RecapPageProps) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum, weeks, maxWeek } = ctx;
+  const { seasonId, weekNum, weeks } = ctx;
 
   const results = await getRecapMatchups(seasonId, weekNum);
   const revealed = await getRevealState();
@@ -51,7 +50,6 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
       <PageHeader
         title="Weekly Recap"
         subtitle={weekLabel}
-        action={<WeekSelector weeks={weeks} current={weekNum} />}
       />
 
       <section>

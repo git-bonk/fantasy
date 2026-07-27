@@ -1,7 +1,6 @@
 import { Check, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
-import { WeekSelector } from "@/components/WeekSelector";
 import { WinProbBar } from "@/components/charts/WinProbBar";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
@@ -22,7 +21,7 @@ interface PredictPageProps {
 
 export default async function PredictPage({ searchParams }: PredictPageProps) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weeks, maxWeek } = ctx;
+  const { seasonId, weeks } = ctx;
   const weekNum = Math.max(ctx.weekNum, 2);
 
   const matchups = (await getPredictData(seasonId, weekNum)).filter(
@@ -46,7 +45,6 @@ export default async function PredictPage({ searchParams }: PredictPageProps) {
       <PageHeader
         title="Predictions"
         subtitle={`${weekLabel} · predicted vs. actual`}
-        action={<WeekSelector weeks={weeks} current={weekNum} />}
       />
 
       {withProbs.length === 0 ? (

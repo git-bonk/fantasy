@@ -2,7 +2,6 @@ import { getTopPerformers, getPositionLeaders } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
 import { PerformersTable } from "@/components/players/PerformersTable";
 import { PositionLeaders } from "@/components/players/PositionLeaders";
-import { WeekSelector } from "@/components/WeekSelector";
 import { Reveal } from "@/components/motion/Reveal";
 
 export default async function PlayersPage({
@@ -11,7 +10,7 @@ export default async function PlayersPage({
   searchParams: Promise<{ year?: string; week?: string }>;
 }) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum: week, weeks, maxWeek } = ctx;
+  const { seasonId, weekNum: week, weeks } = ctx;
 
   const performers = await getTopPerformers(seasonId, week);
   const positionLeaders = getPositionLeaders(seasonId);
@@ -30,13 +29,10 @@ export default async function PlayersPage({
 
       <Reveal delay={0.05}>
         <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="font-display text-xl font-semibold tracking-tight">
-              Top Performers
-              <span className="ml-2 text-sm font-normal text-muted-foreground">{weekLabel}</span>
-            </h2>
-            <WeekSelector weeks={weeks} current={week} />
-          </div>
+          <h2 className="font-display text-xl font-semibold tracking-tight">
+            Top Performers
+            <span className="ml-2 text-sm font-normal text-muted-foreground">{weekLabel}</span>
+          </h2>
           {performers.length > 0 ? (
             <PerformersTable players={performers} />
           ) : (
