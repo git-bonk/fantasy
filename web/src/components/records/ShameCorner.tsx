@@ -1,10 +1,28 @@
 import { Skull } from "lucide-react";
 import { CountUp } from "@/components/motion/CountUp";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
+import { TeamLink } from "@/components/links/TeamLink";
 import type { ShameItem } from "@/lib/types";
 
 interface ShameCornerProps {
   items: ShameItem[];
+}
+
+function ShameBadge({ item }: { item: ShameItem }) {
+  const badge = (
+    <span
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold"
+      style={{ backgroundColor: `${item.color}1f`, color: item.color }}
+    >
+      {item.abbrev}
+    </span>
+  );
+  if (item.teamId == null) return badge;
+  return (
+    <TeamLink teamId={item.teamId} className="shrink-0 transition-opacity hover:opacity-70">
+      {badge}
+    </TeamLink>
+  );
 }
 
 export function ShameCorner({ items }: ShameCornerProps) {
@@ -30,12 +48,7 @@ export function ShameCorner({ items }: ShameCornerProps) {
                 <p className="text-[10px] font-semibold tracking-widest text-rose-400/80 uppercase">
                   {item.label}
                 </p>
-                <span
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[10px] font-bold"
-                  style={{ backgroundColor: `${item.color}1f`, color: item.color }}
-                >
-                  {item.abbrev}
-                </span>
+                <ShameBadge item={item} />
               </div>
               <div className="mt-3 flex items-baseline gap-1.5">
                 <CountUp

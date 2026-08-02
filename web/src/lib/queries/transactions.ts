@@ -2,12 +2,16 @@ import { db } from "../db";
 import type { TransactionRow } from "../types";
 import { maskRows, maskedTeamName } from "./shared";
 
-export async function getTransactions(seasonId: number): Promise<TransactionRow[]> {
+export interface TransactionFeedRow extends TransactionRow {
+  team_id: number | null;
+}
+
+export async function getTransactions(seasonId: number): Promise<TransactionFeedRow[]> {
   const rows = db
     .prepare(
       `SELECT tx.type, tx.player_name, tx.week_num, w.label AS week_label,
               COALESCE(tx.bid_amount, eb.bid_amount) AS bid_amount,
-              t.name tname, t.color, o.alias_num AS owner_alias_num
+              t.id AS team_id, t.name tname, t.color, o.alias_num AS owner_alias_num
        FROM transactions tx
        JOIN weeks w ON w.season_id = tx.season_id AND w.week_num = tx.week_num
        LEFT JOIN teams t ON t.id = tx.team_id
@@ -21,7 +25,7 @@ export async function getTransactions(seasonId: number): Promise<TransactionRow[
        WHERE tx.season_id = ? AND tx.source = 'derived'
        ORDER BY tx.week_num DESC, tx.id`
     )
-    .all(seasonId, seasonId) as TransactionRow[];
+    .all(seasonId, seasonId) as TransactionFeedRow[];
 
   return maskRows(rows, (r) => ({
     tname: r.tname === null ? null : maskedTeamName(r.owner_alias_num),

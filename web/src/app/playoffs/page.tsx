@@ -2,6 +2,7 @@ import { Crown } from "lucide-react";
 import {
   getLatestRatedWeek,
   getMaxRegularWeek,
+  getPlayoffScenarios,
   getPlayoffStandings,
   getPlayoffBracket,
   getRemainingSos,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
+import { PlayoffScenarios } from "@/components/playoffs/PlayoffScenarios";
 import { RemainingSosTable } from "@/components/playoffs/RemainingSosTable";
 import { Bracket } from "@/components/playoffs/Bracket";
 import { PlayoffFormatCard } from "@/components/playoffs/PlayoffFormatCard";
@@ -52,6 +54,7 @@ export default async function PlayoffsPage({
   const week = Math.min(Math.max(ctx.weekNum || maxRegular, 1), maxRegular);
 
   const standings = await getPlayoffStandings(seasonId, week);
+  const scenarios = await getPlayoffScenarios(seasonId, week);
   const bracket = await getPlayoffBracket(seasonId);
   const champion = findChampion(bracket);
   const streaks = new Map<number, TeamStreak>(
@@ -118,6 +121,17 @@ export default async function PlayoffsPage({
           <StandingsTable standings={standings} playoffTeams={playoffTeams} streaks={streaks} />
         </section>
       </Reveal>
+
+      {scenarios.length > 0 && (
+        <Reveal delay={0.11}>
+          <section className="space-y-4">
+            <h2 className="font-display text-xl font-semibold tracking-tight">
+              Playoff scenarios
+            </h2>
+            <PlayoffScenarios rows={scenarios} />
+          </section>
+        </Reveal>
+      )}
 
       {remainingSos.length > 0 && (
         <Reveal delay={0.12}>

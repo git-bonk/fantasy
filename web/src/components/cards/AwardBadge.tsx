@@ -8,9 +8,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
-import type { RecapAwardRow } from "@/lib/types";
+import type { RecapAwardFeedRow } from "@/lib/queries";
 
 export const AWARD_META: Record<
   string,
@@ -25,7 +26,7 @@ export const AWARD_META: Record<
 };
 
 interface AwardBadgeProps {
-  award: RecapAwardRow;
+  award: RecapAwardFeedRow;
   className?: string;
 }
 
@@ -58,9 +59,18 @@ export function AwardBadge({ award, className }: AwardBadgeProps) {
           >
             {meta.label}
           </p>
-          <p className="truncate text-sm font-semibold text-foreground">
-            {award.tname ?? award.player_name ?? "—"}
-          </p>
+          {award.team_id != null && award.tname != null ? (
+            <TeamLink
+              teamId={award.team_id}
+              className="block truncate text-sm font-semibold text-foreground transition-colors hover:text-emerald-400"
+            >
+              {award.tname}
+            </TeamLink>
+          ) : (
+            <p className="truncate text-sm font-semibold text-foreground">
+              {award.tname ?? award.player_name ?? "—"}
+            </p>
+          )}
           {award.detail && (
             <p className="truncate text-xs text-zinc-500">{award.detail}</p>
           )}

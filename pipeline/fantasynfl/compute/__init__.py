@@ -11,7 +11,14 @@ from .loaders import load_games, load_rosters, load_team_ids
 from .luck import compute_luck
 from .owner_elo import compute_owner_elo_all
 from .players import compute_players
-from .playoffs import compute_standings, playoff_odds, rank_standings
+from .playoffs import (
+    ScenarioRow,
+    compute_standings,
+    playoff_odds,
+    playoff_scenarios,
+    rank_standings,
+    store_playoff_scenarios,
+)
 from .predict import predict_games
 from .records import compute_records
 from .sos import compute_sos
@@ -117,8 +124,9 @@ def compute_all(
         ],
     )
 
-    # --- Playoff snapshots (per regular-season week) ---
+    # --- Playoff snapshots + scenarios (per regular-season week) ---
     snapshot_rows = []
+    scenario_rows: list[ScenarioRow] = []
     for w in regular_weeks:
         ratings = {t: snapshots[(t, w)] for t in team_ids}
         standings = compute_standings(games, team_ids, through_week=w)
@@ -143,12 +151,26 @@ def compute_all(
                     odds[t],
                 )
             )
+        scenario_rows.extend(
+            playoff_scenarios(
+                games,
+                team_ids,
+                ratings,
+                through_week=w,
+                n_playoff=n_playoff,
+                sims=sims,
+                seed=1337 + w,
+            )
+        )
     conn.executemany(
         "INSERT OR REPLACE INTO playoff_snapshots "
         "(season_id, week_num, team_id, wins, losses, ties, points_for, points_against, "
         "playoff_seed, playoff_odds) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         snapshot_rows,
     )
+
+    # --- Playoff scenarios (wins-out / loses-out / win-count odds) ---
+    store_playoff_scenarios(conn, season_id, scenario_rows)
 
     # --- Records (global; recompute across all seasons) ---
     conn.execute("DELETE FROM records")

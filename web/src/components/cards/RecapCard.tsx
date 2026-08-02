@@ -1,9 +1,11 @@
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
 import { AWARD_META } from "@/components/cards/AwardBadge";
+import { TeamLink } from "@/components/links/TeamLink";
 import type { MatchupRow, PlayerRow, RecapAwardRow } from "@/lib/types";
 
 interface FeaturedTeamProps {
+  teamId: number;
   abbrev: string;
   name: string;
   color: string;
@@ -11,7 +13,7 @@ interface FeaturedTeamProps {
   isWinner: boolean;
 }
 
-function FeaturedTeam({ abbrev, name, color, score, isWinner }: FeaturedTeamProps) {
+function FeaturedTeam({ teamId, abbrev, name, color, score, isWinner }: FeaturedTeamProps) {
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5 text-center">
       <span
@@ -24,14 +26,15 @@ function FeaturedTeam({ abbrev, name, color, score, isWinner }: FeaturedTeamProp
       >
         {abbrev}
       </span>
-      <p
+      <TeamLink
+        teamId={teamId}
         className={cn(
-          "w-full truncate text-xs font-semibold",
+          "w-full truncate text-xs font-semibold transition-colors hover:text-emerald-400",
           isWinner ? "text-foreground" : "text-zinc-500"
         )}
       >
         {name}
-      </p>
+      </TeamLink>
       <p
         className={cn(
           "font-display text-2xl font-bold tabular-nums",
@@ -103,6 +106,7 @@ export function RecapCard({
             </p>
             <div className="flex items-start justify-between gap-3">
               <FeaturedTeam
+                teamId={featured.aid}
                 abbrev={featured.aabb}
                 name={featured.aname}
                 color={featured.acolor}
@@ -111,6 +115,7 @@ export function RecapCard({
               />
               <span className="mt-3 font-display text-xs font-bold text-zinc-600">VS</span>
               <FeaturedTeam
+                teamId={featured.hid}
                 abbrev={featured.habb}
                 name={featured.hname}
                 color={featured.hcolor}

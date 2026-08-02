@@ -6,12 +6,14 @@ import { ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AliasTag } from "@/components/cards/AliasTag";
 import { MatchupTagBadge } from "@/components/cards/MatchupTagBadge";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { MatchupRow, MatchupTag, WeekRosterRow } from "@/lib/types";
 
 interface TeamSideProps {
+  teamId: number;
   name: string;
   abbrev: string;
   color: string;
@@ -21,7 +23,7 @@ interface TeamSideProps {
   revealed: boolean;
 }
 
-function TeamSide({ name, abbrev, color, score, isWinner, isTie, revealed }: TeamSideProps) {
+function TeamSide({ teamId, name, abbrev, color, score, isWinner, isTie, revealed }: TeamSideProps) {
   return (
     <div
       className={cn(
@@ -40,18 +42,20 @@ function TeamSide({ name, abbrev, color, score, isWinner, isTie, revealed }: Tea
         {abbrev}
       </span>
       <div className="min-w-0 flex-1">
-        {revealed ? (
-          <p
-            className={cn(
-              "truncate text-sm font-semibold",
-              isWinner ? "text-foreground" : "text-zinc-400"
-            )}
-          >
-            {name}
-          </p>
-        ) : (
-          <AliasTag label={name} />
-        )}
+        <TeamLink teamId={teamId} className="inline-flex max-w-full items-center">
+          {revealed ? (
+            <span
+              className={cn(
+                "truncate text-sm font-semibold transition-colors hover:text-emerald-400",
+                isWinner ? "text-foreground" : "text-zinc-400"
+              )}
+            >
+              {name}
+            </span>
+          ) : (
+            <AliasTag label={name} className="transition-colors hover:border-zinc-600" />
+          )}
+        </TeamLink>
         <p className="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">
           {isWinner ? "Winner" : isTie ? "Tie" : "\u00a0"}
         </p>
@@ -196,6 +200,7 @@ export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, 
   const sides = (
     <>
       <TeamSide
+        teamId={m.aid}
         name={m.aname}
         abbrev={m.aabb}
         color={m.acolor}
@@ -205,6 +210,7 @@ export function MatchupCard({ matchup, tag, rosters, autoOpenOnDesktop = false, 
         revealed={revealed}
       />
       <TeamSide
+        teamId={m.hid}
         name={m.hname}
         abbrev={m.habb}
         color={m.hcolor}

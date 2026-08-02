@@ -1,6 +1,19 @@
 import { Crown, Flame, TrendingDown, Zap, Star, Repeat, Medal, type LucideIcon } from "lucide-react";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import type { RecordRow } from "@/lib/types";
+
+function RecordLabel({ record }: { record: RecordRow }) {
+  const text = record.detail ?? record.player_name;
+  if (record.team_id != null) {
+    return (
+      <TeamLink teamId={record.team_id} className="transition-colors hover:text-emerald-400">
+        {text}
+      </TeamLink>
+    );
+  }
+  return <>{text}</>;
+}
 
 interface CategoryConfig {
   title: string;
@@ -51,7 +64,9 @@ export function RecordCategory({ category, records }: RecordCategoryProps) {
           <div className="flex min-w-0 items-center gap-3">
             <Crown className="h-5 w-5 shrink-0 text-amber-400" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{first.detail ?? first.player_name}</p>
+              <p className="truncate text-sm font-semibold">
+                <RecordLabel record={first} />
+              </p>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-400/80">
                 #1 All-Time
               </p>
@@ -75,7 +90,7 @@ export function RecordCategory({ category, records }: RecordCategoryProps) {
               {rec.rank}
             </span>
             <p className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
-              {rec.detail ?? rec.player_name}
+              <RecordLabel record={rec} />
             </p>
             <span
               className={cn(

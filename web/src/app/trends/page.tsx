@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
 import { PointsTrend } from "@/components/charts/PointsTrend";
 import { TeamPointsChart } from "@/components/charts/TeamPointsChart";
+import { TeamLink } from "@/components/links/TeamLink";
 import { Reveal } from "@/components/motion/Reveal";
 import {
   getHeadToHead,
@@ -81,9 +82,12 @@ export default async function TrendsPage({
                       >
                         {s.name.slice(0, 3).toUpperCase()}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                      <TeamLink
+                        teamId={s.team_id}
+                        className="min-w-0 flex-1 truncate text-sm font-semibold transition-colors hover:text-emerald-400"
+                      >
                         {s.name}
-                      </span>
+                      </TeamLink>
                       <span
                         className={cn(
                           "rounded-md px-2 py-0.5 font-mono text-sm font-bold tabular-nums",
@@ -119,7 +123,9 @@ export default async function TrendsPage({
                         className="p-1 font-display text-[10px] font-bold"
                         style={{ color: t.color }}
                       >
-                        {t.abbrev}
+                        <TeamLink teamId={t.id} className="transition-opacity hover:opacity-70">
+                          {t.abbrev}
+                        </TeamLink>
                       </th>
                     ))}
                   </tr>
@@ -131,7 +137,12 @@ export default async function TrendsPage({
                         className="p-1 text-right font-display text-[10px] font-bold"
                         style={{ color: rowTeam.color }}
                       >
-                        {rowTeam.abbrev}
+                        <TeamLink
+                          teamId={rowTeam.id}
+                          className="transition-opacity hover:opacity-70"
+                        >
+                          {rowTeam.abbrev}
+                        </TeamLink>
                       </td>
                       {teams.map((colTeam) => {
                         if (rowTeam.id === colTeam.id) {

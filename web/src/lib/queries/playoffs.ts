@@ -8,6 +8,33 @@ import {
   type SosTeamIdentity,
 } from "./sos";
 
+export type WinDistEntry = [pMakeGivenK: number, pReachK: number];
+export type WinDist = Record<string, WinDistEntry>;
+
+export interface PlayoffScenarioRow {
+  id: number;
+  name: string;
+  abbrev: string;
+  color: string;
+  p_wins_out: number;
+  p_lose_out: number;
+  min_wins_fifty: number | null;
+  win_dist: WinDist;
+  owner_alias_num?: number | null;
+}
+
+interface RawScenarioRow {
+  id: number;
+  name: string;
+  abbrev: string;
+  color: string;
+  p_wins_out: number;
+  p_lose_out: number;
+  min_wins_fifty: number | null;
+  win_dist_json: string;
+  owner_alias_num: number | null;
+}
+
 interface SosRatingRow {
   team_id: number;
   rating: number;
@@ -103,6 +130,42 @@ export async function getRemainingSos(
     matchups,
     new Map(ratings.map((r) => [r.team_id, r.rating]))
   );
+
+  return maskRows(rows, (r) => ({
+    name: maskedTeamName(r.owner_alias_num),
+    abbrev: maskedTeamAbbrev(r.owner_alias_num),
+  }));
+}
+
+/** Ordered by p_wins_out descending so the strongest "wins out" teams lead. */
+export async function getPlayoffScenarios(
+  seasonId: number,
+  weekNum: number
+): Promise<PlayoffScenarioRow[]> {
+  const raw = db
+    .prepare(
+      `SELECT t.id, t.name, t.abbrev, t.color,
+              sc.p_wins_out, sc.p_lose_out, sc.min_wins_fifty, sc.win_dist_json,
+              o.alias_num AS owner_alias_num
+       FROM playoff_scenarios sc
+       JOIN teams t ON t.id = sc.team_id
+       LEFT JOIN owners o ON o.id = t.owner_id
+       WHERE sc.season_id = @seasonId AND sc.week_num = @weekNum
+       ORDER BY sc.p_wins_out DESC`
+    )
+    .all({ seasonId, weekNum }) as RawScenarioRow[];
+
+  const rows: PlayoffScenarioRow[] = raw.map((r) => ({
+    id: r.id,
+    name: r.name,
+    abbrev: r.abbrev,
+    color: r.color,
+    p_wins_out: r.p_wins_out,
+    p_lose_out: r.p_lose_out,
+    min_wins_fifty: r.min_wins_fifty,
+    win_dist: JSON.parse(r.win_dist_json) as WinDist,
+    owner_alias_num: r.owner_alias_num,
+  }));
 
   return maskRows(rows, (r) => ({
     name: maskedTeamName(r.owner_alias_num),

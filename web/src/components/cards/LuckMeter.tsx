@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import type { LuckRow } from "@/lib/types";
 
@@ -31,7 +32,12 @@ export function LuckMeter({ luck, maxAbs, className }: LuckMeterProps) {
         >
           {luck.name.slice(0, 3).toUpperCase()}
         </span>
-        <p className="min-w-0 flex-1 truncate text-sm font-semibold">{luck.name}</p>
+        <TeamLink
+          teamId={luck.id}
+          className="min-w-0 flex-1 truncate text-sm font-semibold transition-colors hover:text-emerald-400"
+        >
+          {luck.name}
+        </TeamLink>
         <span
           className="font-mono text-sm font-bold tabular-nums"
           style={{ color }}

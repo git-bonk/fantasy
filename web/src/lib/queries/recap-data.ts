@@ -2,17 +2,24 @@ import { db } from "../db";
 import type { EloAtWeekRow, LuckRow, RecapAwardRow, SeasonMatchupRow } from "../types";
 import { maskRows, maskedTeamName } from "./shared";
 
-export async function getRecapAwards(seasonId: number, weekNum: number): Promise<RecapAwardRow[]> {
+export interface RecapAwardFeedRow extends RecapAwardRow {
+  team_id: number | null;
+}
+
+export async function getRecapAwards(
+  seasonId: number,
+  weekNum: number
+): Promise<RecapAwardFeedRow[]> {
   const rows = db
     .prepare(
-      `SELECT a.type, a.value, a.detail, a.player_name, t.name tname, t.color,
+      `SELECT a.type, a.value, a.detail, a.player_name, t.id AS team_id, t.name tname, t.color,
               o.alias_num AS owner_alias_num
        FROM awards a JOIN weeks w ON w.id = a.week_id
        LEFT JOIN teams t ON t.id = a.team_id
        LEFT JOIN owners o ON o.id = t.owner_id
        WHERE w.season_id = ? AND w.week_num = ?`
     )
-    .all(seasonId, weekNum) as RecapAwardRow[];
+    .all(seasonId, weekNum) as RecapAwardFeedRow[];
 
   return maskRows(rows, (r) => ({
     tname: r.tname === null ? null : maskedTeamName(r.owner_alias_num),

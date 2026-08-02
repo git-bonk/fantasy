@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/PageHeader";
 import { RivalryPicker } from "@/components/rivalry/RivalryPicker";
+import { TeamLink } from "@/components/links/TeamLink";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { getRivalryGames, getTeam, getTeams } from "@/lib/queries";
@@ -27,7 +28,11 @@ function TeamLockup({ team, flip }: { team: Team; flip?: boolean }) {
       >
         {team.abbrev}
       </span>
-      <p className="min-w-0 truncate font-display text-xl font-bold md:text-2xl">{team.name}</p>
+      <p className="min-w-0 truncate font-display text-xl font-bold md:text-2xl">
+        <TeamLink teamId={team.id} className="transition-colors hover:text-emerald-400">
+          {team.name}
+        </TeamLink>
+      </p>
     </div>
   );
 }

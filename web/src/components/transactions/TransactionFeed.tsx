@@ -1,9 +1,10 @@
 import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
-import type { TransactionRow } from "@/lib/types";
+import type { TransactionFeedRow } from "@/lib/queries";
 
 interface TransactionFeedProps {
-  transactions: TransactionRow[];
+  transactions: TransactionFeedRow[];
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -18,9 +19,9 @@ function isIncoming(type: string): boolean {
 }
 
 function groupByWeek(
-  transactions: TransactionRow[]
-): { weekNum: number; label: string; items: TransactionRow[] }[] {
-  const groups: { weekNum: number; label: string; items: TransactionRow[] }[] = [];
+  transactions: TransactionFeedRow[]
+): { weekNum: number; label: string; items: TransactionFeedRow[] }[] {
+  const groups: { weekNum: number; label: string; items: TransactionFeedRow[] }[] = [];
   for (const tx of transactions) {
     const last = groups[groups.length - 1];
     if (last && last.weekNum === tx.week_num) {
@@ -56,7 +57,7 @@ export function TransactionFeed({ transactions }: TransactionFeedProps) {
   );
 }
 
-function TransactionItem({ tx }: { tx: TransactionRow }) {
+function TransactionItem({ tx }: { tx: TransactionFeedRow }) {
   const incoming = isIncoming(tx.type);
   const Icon = incoming ? ArrowUpCircle : ArrowDownCircle;
 
@@ -84,7 +85,16 @@ function TransactionItem({ tx }: { tx: TransactionRow }) {
             {tx.color && (
               <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tx.color }} />
             )}
-            <span className="truncate text-xs text-muted-foreground">{tx.tname}</span>
+            {tx.team_id != null ? (
+              <TeamLink
+                teamId={tx.team_id}
+                className="truncate text-xs text-muted-foreground transition-colors hover:text-emerald-400"
+              >
+                {tx.tname}
+              </TeamLink>
+            ) : (
+              <span className="truncate text-xs text-muted-foreground">{tx.tname}</span>
+            )}
           </div>
         )}
       </div>
