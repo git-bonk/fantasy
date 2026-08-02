@@ -1,7 +1,16 @@
 import { Crown } from "lucide-react";
-import { getMaxRegularWeek, getPlayoffStandings, getPlayoffBracket, getSeasonSettings, getStreaks } from "@/lib/queries";
+import {
+  getLatestRatedWeek,
+  getMaxRegularWeek,
+  getPlayoffStandings,
+  getPlayoffBracket,
+  getRemainingSos,
+  getSeasonSettings,
+  getStreaks,
+} from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
+import { RemainingSosTable } from "@/components/playoffs/RemainingSosTable";
 import { Bracket } from "@/components/playoffs/Bracket";
 import { PlayoffFormatCard } from "@/components/playoffs/PlayoffFormatCard";
 import { Reveal } from "@/components/motion/Reveal";
@@ -52,6 +61,11 @@ export default async function PlayoffsPage({
   const settings = getSeasonSettings(seasonId);
   const format = settings.playoff ?? null;
   const playoffTeams = format?.team_count ?? settings.playoff_teams ?? 6;
+
+  // Rest-of-season SOS runs "through" the resolved week, capped at the last
+  // week with elo ratings so a pre-season season still shows its full schedule.
+  const throughWeek = Math.min(week, getLatestRatedWeek(seasonId));
+  const remainingSos = await getRemainingSos(seasonId, throughWeek);
 
   return (
     <div className="space-y-8">
@@ -104,6 +118,17 @@ export default async function PlayoffsPage({
           <StandingsTable standings={standings} playoffTeams={playoffTeams} streaks={streaks} />
         </section>
       </Reveal>
+
+      {remainingSos.length > 0 && (
+        <Reveal delay={0.12}>
+          <section className="space-y-4">
+            <h2 className="font-display text-xl font-semibold tracking-tight">
+              Remaining schedule
+            </h2>
+            <RemainingSosTable rows={remainingSos} throughWeek={throughWeek} />
+          </section>
+        </Reveal>
+      )}
 
       <Reveal delay={0.15}>
         <section className="space-y-4">

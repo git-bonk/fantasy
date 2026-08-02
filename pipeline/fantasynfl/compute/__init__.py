@@ -5,8 +5,9 @@ from __future__ import annotations
 import sqlite3
 
 from .awards import compute_awards
+from .coach import compute_coach_ratings, store_coach_ratings
 from .elo import INITIAL, compute_elo
-from .loaders import load_games, load_team_ids
+from .loaders import load_games, load_rosters, load_team_ids
 from .luck import compute_luck
 from .owner_elo import compute_owner_elo_all
 from .players import compute_players
@@ -14,7 +15,9 @@ from .playoffs import compute_standings, playoff_odds, rank_standings
 from .predict import predict_games
 from .records import compute_records
 from .sos import compute_sos
+from .trades import compute_trades, store_trades
 from .transactions import store_derived_transactions
+from .waiver import compute_waiver_impact, store_waiver_impact
 
 __all__ = [
     "compute_all",
@@ -161,5 +164,12 @@ def compute_all(
 
     # --- Derived transactions (week-over-week roster diffs) ---
     store_derived_transactions(conn, season_id)
+
+    # --- Coach ratings (optimal vs. actual lineup per team-week) ---
+    store_coach_ratings(conn, season_id, compute_coach_ratings(load_rosters(conn, season_id)))
+
+    # --- Trade grades + waiver impact (read the derived transactions above) ---
+    store_trades(conn, season_id, compute_trades(conn, season_id))
+    store_waiver_impact(conn, season_id, compute_waiver_impact(conn, season_id))
 
     conn.commit()
