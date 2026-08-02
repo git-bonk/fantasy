@@ -21,6 +21,7 @@ from .models import (
     WeekInfo,
     WeekRoster,
 )
+from .nfl_stats import extract_real_stats
 from .overrides import apply_override
 
 log = logging.getLogger("fantasynfl.espn")
@@ -404,6 +405,7 @@ def _lineup(lineup: list[object]) -> list[RosterPlayer]:
                 nfl_team=getattr(p, "proTeam", "") or "",
                 lineup_slot=_norm_slot(getattr(p, "lineupSlot", "") or "BN"),
                 points=float(getattr(p, "points", 0.0) or 0.0),
+                raw_stats=extract_real_stats(getattr(p, "breakdown", None)),
             )
         )
     return players

@@ -7,13 +7,16 @@ import { Reveal } from "@/components/motion/Reveal";
 import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/cards/StatCard";
 import { CareerPointsChart } from "@/components/players/CareerPointsChart";
+import { NflStatsTable, type NflStatsRow } from "@/components/players/NflStatsTable";
 import { TenureTimeline } from "@/components/players/TenureTimeline";
 import {
   careerSpan,
   getPlayerCareer,
+  getPlayerNflStats,
   getPlayerOwnership,
   getPlayerTenure,
   isFranchiseLegend,
+  nflStatColumns,
   pointsBySeason,
   summarizeCareer,
 } from "@/lib/queries/player-career";
@@ -30,11 +33,22 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
   const career = await getPlayerCareer(playerId);
   if (!career) notFound();
 
-  const tenure = await getPlayerTenure(playerId);
-  const ownership = await getPlayerOwnership(playerId);
+  const [tenure, ownership, nflStats] = await Promise.all([
+    getPlayerTenure(playerId),
+    getPlayerOwnership(playerId),
+    getPlayerNflStats(playerId),
+  ]);
   const summary = summarizeCareer(tenure);
   const legend = isFranchiseLegend(ownership.maxSeasonsSameOwner);
   const seasonPoints = pointsBySeason(tenure);
+  const statColumns = nflStatColumns(career.position);
+  const pointsByYear = new Map(seasonPoints.map((p) => [p.year, p.points]));
+  const nflRows: NflStatsRow[] = nflStats.map((s) => ({
+    year: s.year,
+    games: s.games,
+    fantasyPoints: pointsByYear.get(s.year) ?? 0,
+    stats: s.stats,
+  }));
 
   return (
     <div className="space-y-6">
@@ -103,6 +117,23 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
           </CardContent>
         </Card>
       </Reveal>
+
+      {nflRows.length > 0 && statColumns.length > 0 && (
+        <Reveal delay={0.09}>
+          <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
+            <CardHeader className="border-b border-zinc-800 pb-3">
+              <CardTitle className="font-display">NFL Production</CardTitle>
+              <p className="text-xs text-zinc-500">
+                Real-world stats for the weeks this player was on a league roster, next to the
+                fantasy points they delivered.
+              </p>
+            </CardHeader>
+            <CardContent className="p-0">
+              <NflStatsTable rows={nflRows} columns={statColumns} />
+            </CardContent>
+          </Card>
+        </Reveal>
+      )}
 
       <Reveal delay={0.1}>
         <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">

@@ -204,7 +204,7 @@ def store_week(
         conn.executemany(
             "INSERT INTO rosters "
             "(week_id, team_id, espn_player_id, player_name, position, nfl_team, lineup_slot, "
-            "points) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "points, raw_stats) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     week_id,
@@ -215,6 +215,7 @@ def store_week(
                     p.nfl_team,
                     p.lineup_slot,
                     p.points,
+                    json.dumps(p.raw_stats) if p.raw_stats else None,
                 )
                 for p in r.players
             ],

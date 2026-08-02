@@ -178,6 +178,122 @@ export function pointsBySeason(tenure: PlayerTenureRow[]): SeasonPointsPoint[] {
     .map(([year, points]) => ({ year, points: Number(points.toFixed(1)) }));
 }
 
+export const NFL_STAT_KEYS = [
+  "passingAttempts",
+  "passingCompletions",
+  "passingYards",
+  "passingTouchdowns",
+  "passingInterceptions",
+  "rushingAttempts",
+  "rushingYards",
+  "rushingTouchdowns",
+  "receivingReceptions",
+  "receivingYards",
+  "receivingTouchdowns",
+  "receivingTargets",
+  "fumbles",
+  "lostFumbles",
+  "madeFieldGoals",
+  "attemptedFieldGoals",
+  "madeExtraPoints",
+  "defensiveSacks",
+  "defensiveInterceptions",
+  "defensivePointsAllowed",
+  "defensiveYardsAllowed",
+] as const;
+
+export interface NflSeasonStats {
+  year: number;
+  games: number;
+  stats: Record<string, number>;
+}
+
+export interface NflStatColumn {
+  key: string;
+  label: string;
+}
+
+const QB_COLUMNS: NflStatColumn[] = [
+  { key: "passingAttempts", label: "Att" },
+  { key: "passingCompletions", label: "Cmp" },
+  { key: "passingYards", label: "Yds" },
+  { key: "passingTouchdowns", label: "TD" },
+  { key: "passingInterceptions", label: "INT" },
+];
+
+const RB_COLUMNS: NflStatColumn[] = [
+  { key: "rushingAttempts", label: "Att" },
+  { key: "rushingYards", label: "Rush Yds" },
+  { key: "rushingTouchdowns", label: "TD" },
+  { key: "receivingReceptions", label: "Rec" },
+  { key: "receivingYards", label: "Rec Yds" },
+];
+
+const RECEIVER_COLUMNS: NflStatColumn[] = [
+  { key: "receivingReceptions", label: "Rec" },
+  { key: "receivingYards", label: "Yds" },
+  { key: "receivingTouchdowns", label: "TD" },
+  { key: "receivingTargets", label: "Tgt" },
+];
+
+const K_COLUMNS: NflStatColumn[] = [
+  { key: "madeFieldGoals", label: "FG" },
+  { key: "attemptedFieldGoals", label: "FGA" },
+  { key: "madeExtraPoints", label: "XP" },
+];
+
+const DEF_COLUMNS: NflStatColumn[] = [
+  { key: "defensiveSacks", label: "Sck" },
+  { key: "defensiveInterceptions", label: "INT" },
+  { key: "defensivePointsAllowed", label: "PA" },
+  { key: "defensiveYardsAllowed", label: "Yds A" },
+];
+
+export function nflStatColumns(position: string): NflStatColumn[] {
+  switch (position) {
+    case "QB":
+      return QB_COLUMNS;
+    case "RB":
+      return RB_COLUMNS;
+    case "WR":
+    case "TE":
+      return RECEIVER_COLUMNS;
+    case "K":
+      return K_COLUMNS;
+    case "DEF":
+      return DEF_COLUMNS;
+    default:
+      return [];
+  }
+}
+
+export async function getPlayerNflStats(playerId: number): Promise<NflSeasonStats[]> {
+  const selectList = NFL_STAT_KEYS.map(
+    (key) => `SUM(COALESCE(json_extract(r.raw_stats, '$.${key}'), 0)) AS "${key}"`
+  ).join(", ");
+  const rows = db
+    .prepare(
+      `SELECT s.year AS year,
+              COUNT(DISTINCT w.week_num) AS games,
+              ${selectList}
+       FROM rosters r
+       JOIN weeks w ON w.id = r.week_id
+       JOIN seasons s ON s.id = w.season_id
+       WHERE r.espn_player_id = (SELECT espn_player_id FROM players WHERE id = @playerId)
+       GROUP BY s.year
+       ORDER BY s.year ASC`
+    )
+    .all({ playerId }) as ({ year: number; games: number } & Record<string, number>)[];
+
+  return rows.map((row) => {
+    const stats: Record<string, number> = {};
+    for (const key of NFL_STAT_KEYS) {
+      stats[key] = row[key] ?? 0;
+    }
+    return { year: row.year, games: row.games, stats };
+  });
+}
+
 /** Human-readable career span, e.g. "2018–2024", "2020", or "—" when unknown. */
 export function careerSpan(firstYear: number | null, lastYear: number | null): string {
   const years = [firstYear, lastYear].filter((y): y is number => y != null);

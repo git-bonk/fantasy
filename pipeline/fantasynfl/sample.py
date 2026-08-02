@@ -147,6 +147,56 @@ def _weekly_points(rng: random.Random, player: dict, quality: float) -> float:
     return round(max(0.0, rng.gauss(mean, sd)), 1)
 
 
+def _raw_stats(rng: random.Random, position: str, points: float) -> dict[str, float]:
+    """Plausible real-NFL counters scaled from the fantasy points scored."""
+    if points <= 0:
+        return {}
+    if position == "QB":
+        att = int(points * 1.6 + rng.uniform(12, 22))
+        yds = int(points * rng.uniform(9.5, 12.5))
+        return {
+            "passingAttempts": float(att),
+            "passingCompletions": float(int(att * rng.uniform(0.55, 0.72))),
+            "passingYards": float(yds),
+            "passingTouchdowns": float(max(0, round(points / rng.uniform(5, 8)))),
+            "passingInterceptions": float(rng.random() < 0.18),
+        }
+    if position == "RB":
+        return {
+            "rushingAttempts": float(int(points * rng.uniform(0.9, 1.4) + 3)),
+            "rushingYards": float(int(points * rng.uniform(3.4, 5.2))),
+            "rushingTouchdowns": float(max(0, round(points / rng.uniform(7, 11)))),
+            "receivingReceptions": float(rng.randint(0, 3)),
+            "receivingYards": float(rng.randint(0, 28)),
+            "receivingTargets": float(rng.randint(0, 4)),
+        }
+    if position in ("WR", "TE"):
+        rec = max(1, round(points / rng.uniform(1.9, 2.7)))
+        return {
+            "receivingReceptions": float(rec),
+            "receivingYards": float(int(points * rng.uniform(5.2, 7.8))),
+            "receivingTouchdowns": float(max(0, round(points / rng.uniform(8, 13)))),
+            "receivingTargets": float(int(rec * rng.uniform(1.2, 1.9))),
+        }
+    if position == "K":
+        made = max(0, round(points / rng.uniform(4, 5.5)))
+        return {
+            "madeFieldGoals": float(made),
+            "attemptedFieldGoals": float(made + (rng.random() < 0.15)),
+            "madeExtraPoints": float(max(0, round(points - made * 3))),
+            "attemptedExtraPoints": float(max(0, round(points - made * 3))),
+        }
+    if position == "DEF":
+        return {
+            "defensiveSacks": float(rng.randint(0, max(1, round(points / 2)))),
+            "defensiveInterceptions": float(rng.random() < 0.3),
+            "defensiveFumbles": float(rng.random() < 0.2),
+            "defensivePointsAllowed": float(max(0, int(38 - points * rng.uniform(1.0, 1.6)))),
+            "defensiveYardsAllowed": float(max(180, int(430 - points * rng.uniform(8, 14)))),
+        }
+    return {}
+
+
 def _play_week(
     rng: random.Random, players: list[dict], quality: float
 ) -> tuple[list[RosterPlayer], float]:
@@ -198,14 +248,26 @@ def _play_week(
         total += p["points"]
         roster.append(
             RosterPlayer(
-                p["espn_player_id"], p["name"], p["position"], p["nfl_team"], p["slot"], p["points"]
+                p["espn_player_id"],
+                p["name"],
+                p["position"],
+                p["nfl_team"],
+                p["slot"],
+                p["points"],
+                _raw_stats(rng, p["position"], p["points"]),
             )
         )
     for p in scored:
         if p["espn_player_id"] not in used_ids:
             roster.append(
                 RosterPlayer(
-                    p["espn_player_id"], p["name"], p["position"], p["nfl_team"], "BN", p["points"]
+                    p["espn_player_id"],
+                    p["name"],
+                    p["position"],
+                    p["nfl_team"],
+                    "BN",
+                    p["points"],
+                    _raw_stats(rng, p["position"], p["points"]),
                 )
             )
     return roster, round(total, 1)
@@ -322,6 +384,7 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
                             p.nfl_team,
                             p.lineup_slot,
                             round(p.points - 0.1, 1),
+                            p.raw_stats,
                         )
                         wr.players[idx] = adjusted
                         sb = round(sb - 0.1, 1)

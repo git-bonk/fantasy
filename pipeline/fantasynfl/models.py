@@ -39,6 +39,7 @@ class RosterPlayer:
     nfl_team: str
     lineup_slot: str  # QB, RB, WR, TE, FLEX, K, DEF, BN, IR
     points: float
+    raw_stats: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

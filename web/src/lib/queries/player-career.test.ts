@@ -3,6 +3,8 @@ import {
   careerSpan,
   FRANCHISE_LEGEND_SEASONS,
   isFranchiseLegend,
+  NFL_STAT_KEYS,
+  nflStatColumns,
   pointsBySeason,
   summarizeCareer,
   type PlayerTenureRow,
@@ -91,5 +93,37 @@ describe("careerSpan", () => {
   it("falls back to the present year when one side is missing", () => {
     expect(careerSpan(null, 2021)).toBe("2021");
     expect(careerSpan(2019, null)).toBe("2019");
+  });
+});
+
+describe("nflStatColumns", () => {
+  it("returns position-appropriate columns", () => {
+    expect(nflStatColumns("QB").map((c) => c.key)).toEqual([
+      "passingAttempts",
+      "passingCompletions",
+      "passingYards",
+      "passingTouchdowns",
+      "passingInterceptions",
+    ]);
+    expect(nflStatColumns("WR").map((c) => c.key)).toContain("receivingTargets");
+    expect(nflStatColumns("TE").map((c) => c.key)).toEqual(
+      nflStatColumns("WR").map((c) => c.key)
+    );
+    expect(nflStatColumns("K").map((c) => c.key)).toContain("madeFieldGoals");
+    expect(nflStatColumns("DEF").map((c) => c.key)).toContain("defensiveSacks");
+  });
+
+  it("only references stats the query aggregates", () => {
+    const keys = new Set<string>(NFL_STAT_KEYS);
+    for (const pos of ["QB", "RB", "WR", "TE", "K", "DEF"]) {
+      for (const col of nflStatColumns(pos)) {
+        expect(keys.has(col.key)).toBe(true);
+      }
+    }
+  });
+
+  it("returns no columns for unknown positions", () => {
+    expect(nflStatColumns("")).toEqual([]);
+    expect(nflStatColumns("P")).toEqual([]);
   });
 });

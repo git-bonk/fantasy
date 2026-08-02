@@ -65,6 +65,7 @@ export interface Rosters {
   nfl_team: string;
   lineup_slot: string;
   points: number;
+  raw_stats: string | null;
 }
 
 export interface Transactions {

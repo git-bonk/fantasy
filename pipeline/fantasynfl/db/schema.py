@@ -77,7 +77,8 @@ CREATE TABLE IF NOT EXISTS rosters (
   position TEXT NOT NULL,
   nfl_team TEXT NOT NULL,
   lineup_slot TEXT NOT NULL,
-  points REAL NOT NULL
+  points REAL NOT NULL,
+  raw_stats TEXT
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -371,6 +372,12 @@ def init_db(conn: sqlite3.Connection) -> None:
     if "source" not in tx_cols:
         try:
             conn.execute("ALTER TABLE transactions ADD COLUMN source TEXT NOT NULL DEFAULT 'espn'")
+        except sqlite3.OperationalError:
+            pass
+    roster_cols = {r["name"] for r in conn.execute("PRAGMA table_info(rosters)").fetchall()}
+    if "raw_stats" not in roster_cols:
+        try:
+            conn.execute("ALTER TABLE rosters ADD COLUMN raw_stats TEXT")
         except sqlite3.OperationalError:
             pass
     conn.execute(
