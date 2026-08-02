@@ -48,13 +48,13 @@ function groupByWeek(transactions: TransactionFeedRow[]): WeekGroup[] {
       groups.push({ weekNum: tx.week_num, label: tx.week_label, items: [tx] });
     }
   }
-  return groups;
+  return groups.reverse();
 }
 
 export function TransactionFeed({ transactions, year }: TransactionFeedProps) {
-  const [selected, setSelected] = useState(0);
   const reduce = useReducedMotion();
   const groups = groupByWeek(transactions);
+  const [selected, setSelected] = useState(Math.max(0, groups.length - 1));
   const group = groups[selected];
 
   if (!group) return null;
