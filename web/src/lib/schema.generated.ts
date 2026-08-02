@@ -236,3 +236,20 @@ export interface PlayoffScenarios {
   min_wins_fifty: number | null;
   win_dist_json: string;
 }
+
+export interface DraftPicks {
+  id: number;
+  season_id: number;
+  team_id: number | null;
+  espn_team_id: number;
+  round_num: number;
+  round_pick: number;
+  overall_pick: number | null;
+  espn_player_id: number | null;
+  player_name: string;
+  position: string;
+  nfl_team: string | null;
+  bid_amount: number | null;
+  keeper_status: number;
+  nominating_espn_team_id: number | null;
+}

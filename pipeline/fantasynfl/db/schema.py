@@ -260,6 +260,23 @@ CREATE TABLE IF NOT EXISTS playoff_scenarios (
   UNIQUE(season_id, week_num, team_id)
 );
 
+CREATE TABLE IF NOT EXISTS draft_picks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  season_id INTEGER NOT NULL,
+  team_id INTEGER REFERENCES teams(id),
+  espn_team_id INTEGER NOT NULL,
+  round_num INTEGER NOT NULL,
+  round_pick INTEGER NOT NULL,
+  overall_pick INTEGER,
+  espn_player_id INTEGER,
+  player_name TEXT NOT NULL,
+  position TEXT NOT NULL,
+  nfl_team TEXT,
+  bid_amount INTEGER,
+  keeper_status INTEGER NOT NULL DEFAULT 0,
+  nominating_espn_team_id INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_teams_season ON teams(season_id);
 CREATE INDEX IF NOT EXISTS idx_weeks_season ON weeks(season_id);
 CREATE INDEX IF NOT EXISTS idx_matchups_week ON matchups(week_id);
@@ -271,6 +288,7 @@ CREATE INDEX IF NOT EXISTS idx_owner_elo ON owner_elo(owner_id, season_id);
 CREATE INDEX IF NOT EXISTS idx_playoff_season ON playoff_snapshots(season_id, week_num);
 CREATE INDEX IF NOT EXISTS idx_owner_tokens_owner ON owner_tokens(owner_id);
 CREATE INDEX IF NOT EXISTS idx_waiver_impact_season ON waiver_impact(season_id);
+CREATE INDEX IF NOT EXISTS idx_draft_picks_season ON draft_picks(season_id);
 """
 
 

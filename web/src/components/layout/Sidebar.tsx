@@ -17,6 +17,7 @@ import {
   Medal,
   History,
   Crown,
+  Gavel,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSeason } from "@/lib/season-context";
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/playoffs", label: "Playoffs", icon: Swords },
   { href: "/players", label: "Players", icon: Star },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/draft", label: "Draft", icon: Gavel },
   { href: "/records", label: "Records", icon: Medal },
 ];
 
