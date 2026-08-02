@@ -42,6 +42,9 @@ def clear_season(conn: sqlite3.Connection, year: int) -> None:
         return
     season_id = row["id"]
     _delete_awards(conn, _week_ids(conn, season_id))
+    # draft_picks.team_id references teams without ON DELETE CASCADE, so clear it
+    # before the season delete cascades to teams.
+    conn.execute("DELETE FROM draft_picks WHERE season_id = ?", (season_id,))
     conn.execute("DELETE FROM seasons WHERE id = ?", (season_id,))  # cascades
     _delete_derived(conn, season_id)
     conn.commit()
@@ -53,6 +56,7 @@ def clear_season_data(conn: sqlite3.Connection, season_id: int) -> None:
     _delete_awards(conn, _week_ids(conn, season_id))
     conn.execute("DELETE FROM weeks WHERE season_id = ?", (season_id,))  # cascades matchups+rosters
     conn.execute("DELETE FROM transactions WHERE season_id = ?", (season_id,))
+    conn.execute("DELETE FROM draft_picks WHERE season_id = ?", (season_id,))  # before teams (FK)
     conn.execute("DELETE FROM teams WHERE season_id = ?", (season_id,))
     _delete_derived(conn, season_id)
     conn.commit()

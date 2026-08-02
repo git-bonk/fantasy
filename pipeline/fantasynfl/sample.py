@@ -13,6 +13,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 from .models import (
+    DraftPick,
     Matchup,
     Owner,
     RosterPlayer,
@@ -254,6 +255,10 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
     team_ids = [t.espn_team_id for t in teams]
     quality = {tid: rng.uniform(0.82, 1.22) for tid in team_ids}
     rosters_by_team = {tid: _make_players(rng, i) for i, tid in enumerate(team_ids)}
+    # Snapshot the pre-season pools for the synthetic draft; in-season churn mutates
+    # rosters_by_team but leaves these original player dicts untouched, so every
+    # drafted player appears on that team's week-1 roster (draft-value analysis works).
+    draft_pools = {tid: list(rosters_by_team[tid]) for tid in team_ids}
 
     season_start = date(year, 9, 9)  # a Tuesday
     weeks: list[WeekInfo] = []
@@ -364,6 +369,9 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
     # --- Transactions ---
     transactions = _make_transactions(rng, team_ids, rosters_by_team, season_start)
 
+    # --- Draft --- (generated last so its rng draws never perturb earlier output)
+    draft_picks = _make_draft(rng, team_ids, draft_pools)
+
     return SeasonData(
         year=year,
         league_id=league_id,
@@ -389,6 +397,7 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
         matchups=matchups,
         rosters=week_rosters,
         transactions=transactions,
+        draft_picks=draft_picks,
     )
 
 
@@ -458,6 +467,48 @@ def _make_transactions(
                 )
             )
     return txs
+
+
+def _make_draft(
+    rng: random.Random,
+    team_ids: list[int],
+    pools: dict[int, list[dict]],
+) -> list[DraftPick]:
+    """Generate a deterministic snake draft from each team's initial player pool.
+
+    Rounds equal the roster size and the pick order snakes (each even round reverses
+    the previous one). A team's picks come from its own pool ordered best-first by
+    talent, so early rounds carry the strongest players and the drafted player ids
+    match the generated rosters. The league is snake, so ``bid_amount`` stays None.
+    """
+    ordered = {tid: sorted(pools[tid], key=lambda p: -p["talent"]) for tid in team_ids}
+    rounds = max((len(v) for v in ordered.values()), default=0)
+    picks: list[DraftPick] = []
+    overall = 0
+    for round_num in range(1, rounds + 1):
+        order = team_ids if round_num % 2 == 1 else list(reversed(team_ids))
+        for round_pick, tid in enumerate(order, start=1):
+            pool = ordered[tid]
+            if round_num - 1 >= len(pool):
+                continue
+            player = pool[round_num - 1]
+            overall += 1
+            picks.append(
+                DraftPick(
+                    espn_team_id=tid,
+                    round_num=round_num,
+                    round_pick=round_pick,
+                    overall_pick=overall,
+                    espn_player_id=player["espn_player_id"],
+                    player_name=player["name"],
+                    position=player["position"],
+                    nfl_team=player["nfl_team"],
+                    bid_amount=None,
+                    keeper_status=1 if rng.random() < 0.12 else 0,
+                    nominating_espn_team_id=None,
+                )
+            )
+    return picks
 
 
 def sample_token_plaintext(alias_num: int) -> str:

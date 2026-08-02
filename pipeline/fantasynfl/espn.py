@@ -11,6 +11,7 @@ import time
 from typing import Any
 
 from .models import (
+    DraftPick,
     Matchup,
     Owner,
     RosterPlayer,
@@ -318,6 +319,43 @@ class ESPNClient:
                 )
         log.info("Fetched %d transactions for %d", len(txs), self.year)
         return txs
+
+    def fetch_draft(self) -> list[DraftPick]:
+        """Return the league's draft picks, already populated at league init.
+
+        espn_api builds ``league.draft`` (a list of pick objects exposing ``team``,
+        ``playerId``, ``playerName``, ``position``, ``round_num``, ``round_pick``,
+        ``bid_amount``, ``keeper_status``, and ``nominatingTeam``) during ``League``
+        construction, so this makes no extra API calls. Returns an empty list when
+        ESPN has no draft detail (e.g. very old seasons) so ingest never fails on a
+        missing draft.
+        """
+        league = self._get_league()
+        picks: list[DraftPick] = []
+        for p in getattr(league, "draft", None) or []:
+            team = getattr(p, "team", None)
+            espn_team_id = int(getattr(team, "team_id", 0) or 0)
+            if not espn_team_id:
+                continue
+            nominating = getattr(p, "nominatingTeam", None)
+            nominating_id = int(getattr(nominating, "team_id", 0) or 0) or None
+            picks.append(
+                DraftPick(
+                    espn_team_id=espn_team_id,
+                    round_num=int(getattr(p, "round_num", 0) or 0),
+                    round_pick=int(getattr(p, "round_pick", 0) or 0),
+                    overall_pick=int(getattr(p, "overall_pick", 0) or 0) or None,
+                    espn_player_id=int(getattr(p, "playerId", 0) or 0) or None,
+                    player_name=getattr(p, "playerName", "") or "",
+                    position=_norm_position(getattr(p, "position", "") or ""),
+                    nfl_team=None,
+                    bid_amount=int(getattr(p, "bid_amount", 0) or 0) or None,
+                    keeper_status=int(getattr(p, "keeper_status", 0) or 0),
+                    nominating_espn_team_id=nominating_id,
+                )
+            )
+        log.info("Fetched %d draft picks for %d", len(picks), self.year)
+        return picks
 
     def get_settings(self) -> dict[str, object]:
         league = self._get_league()

@@ -4,7 +4,9 @@ import { Reveal } from "@/components/motion/Reveal";
 import { EloLineChart } from "@/components/charts/EloLineChart";
 import { CoachRatingsTable } from "@/components/rankings/CoachRatingsTable";
 import { RankingsTable } from "@/components/rankings/RankingsTable";
+import { ReportCards } from "@/components/rankings/ReportCards";
 import { getCoachLeaderboard, getEloHistory, getSeasonPowerRankings } from "@/lib/queries";
+import { getSeasonReportCards } from "@/lib/queries";
 import { getRevealState } from "@/lib/reveal";
 import { resolveSeason } from "@/lib/resolve-season";
 
@@ -18,6 +20,7 @@ export default async function RankingsPage({
   const rankings = await getSeasonPowerRankings(seasonId);
   const history = await getEloHistory(seasonId);
   const coach = await getCoachLeaderboard(seasonId);
+  const reportCards = await getSeasonReportCards(seasonId);
   const revealed = await getRevealState();
 
   const weeks = [...new Set(history.map((h) => h.week_num))].sort((a, b) => a - b);
@@ -67,6 +70,17 @@ export default async function RankingsPage({
           </CardHeader>
           <CardContent className="p-0">
             <CoachRatingsTable rows={coach} revealed={revealed} />
+          </CardContent>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={0.15}>
+        <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
+          <CardHeader className="border-b border-zinc-800 pb-3">
+            <CardTitle className="font-display">Season Report Cards</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ReportCards cards={reportCards} />
           </CardContent>
         </Card>
       </Reveal>

@@ -27,6 +27,7 @@ from .db import (
     get_unfinalized_weeks,
     init_db,
     set_season_status,
+    store_draft,
     store_owners,
     store_scheduled_matchups,
     store_season,
@@ -55,6 +56,7 @@ def _ingest_one(db_path: Path, season: SeasonData, sims: int = 2000) -> None:
     try:
         init_db(conn)
         season_id = store_season(conn, season)
+        store_draft(conn, season_id, season.draft_picks)
         n_playoff = int(season.settings.get("playoff_teams", 6))
         compute_all(conn, season_id, n_playoff=n_playoff, sims=sims)
         compute_owner_elo_all(conn)
@@ -165,6 +167,7 @@ def _ingest_season_full(conn, client, year: int, league_id: str, sims: int) -> N
     store_owners(conn, owners)
     team_row_id = store_teams(conn, season_id, teams)
     log.info("Teams stored (%d teams, %d owners)", len(teams), len(owners))
+    store_draft(conn, season_id, client.fetch_draft())
     _store_schedule(conn, client, season_id, year)
 
     current_week = client.current_week()
@@ -190,6 +193,7 @@ def _ingest_season_incremental(conn, client, year: int, league_id: str, sims: in
     teams, owners = client.fetch_teams()
     store_owners(conn, owners)
     team_row_id = store_teams(conn, season_id, teams)
+    store_draft(conn, season_id, client.fetch_draft())
     _store_schedule(conn, client, season_id, year)
 
     current_week = client.current_week()
@@ -331,6 +335,7 @@ def backfill(
         teams, owners = client.fetch_teams()
         store_owners(conn, owners)
         team_row_id = store_teams(conn, season_id, teams)
+        store_draft(conn, season_id, client.fetch_draft())
         current_week = client.current_week()
 
         start_week = _playoff_start_week(settings)

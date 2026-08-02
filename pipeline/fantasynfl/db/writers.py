@@ -7,6 +7,7 @@ import sqlite3
 from datetime import UTC, datetime
 
 from ..models import (
+    DraftPick,
     Matchup,
     Owner,
     ScheduledMatchup,
@@ -247,6 +248,48 @@ def store_transactions(
                 "espn",
             ),
         )
+    conn.commit()
+
+
+def store_draft(conn: sqlite3.Connection, season_id: int, draft_picks: list[DraftPick]) -> None:
+    """Store a season's draft picks, resolving team_id from the teams table.
+
+    Idempotent: deletes the season's existing picks first, then inserts. A pick's
+    ``team_id`` is looked up by ``(season_id, espn_team_id)`` and left NULL when no
+    team matches, so the board still renders unmatched picks. Commits like the
+    sibling writers.
+    """
+    mapping = {
+        r["espn_team_id"]: r["id"]
+        for r in conn.execute(
+            "SELECT id, espn_team_id FROM teams WHERE season_id = ?", (season_id,)
+        ).fetchall()
+    }
+    conn.execute("DELETE FROM draft_picks WHERE season_id = ?", (season_id,))
+    conn.executemany(
+        "INSERT INTO draft_picks "
+        "(season_id, team_id, espn_team_id, round_num, round_pick, overall_pick, "
+        "espn_player_id, player_name, position, nfl_team, bid_amount, keeper_status, "
+        "nominating_espn_team_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                season_id,
+                mapping.get(p.espn_team_id),
+                p.espn_team_id,
+                p.round_num,
+                p.round_pick,
+                p.overall_pick,
+                p.espn_player_id,
+                p.player_name,
+                p.position,
+                p.nfl_team,
+                p.bid_amount,
+                p.keeper_status,
+                p.nominating_espn_team_id,
+            )
+            for p in draft_picks
+        ],
+    )
     conn.commit()
 
 

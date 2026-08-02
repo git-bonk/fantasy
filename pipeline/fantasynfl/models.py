@@ -85,6 +85,21 @@ class Transaction:
     occurred_at: str  # ISO date
 
 
+@dataclass(frozen=True)
+class DraftPick:
+    espn_team_id: int
+    round_num: int
+    round_pick: int
+    player_name: str
+    position: str
+    overall_pick: int | None = None
+    espn_player_id: int | None = None
+    nfl_team: str | None = None
+    bid_amount: int | None = None
+    keeper_status: int = 0
+    nominating_espn_team_id: int | None = None
+
+
 @dataclass
 class SeasonData:
     year: int
@@ -96,3 +111,4 @@ class SeasonData:
     matchups: list[Matchup] = field(default_factory=list)
     rosters: list[WeekRoster] = field(default_factory=list)
     transactions: list[Transaction] = field(default_factory=list)
+    draft_picks: list[DraftPick] = field(default_factory=list)

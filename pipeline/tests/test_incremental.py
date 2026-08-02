@@ -60,6 +60,9 @@ class SampleClient:
     def fetch_transactions(self, teams):
         return []
 
+    def fetch_draft(self):
+        return SEASON.draft_picks
+
 
 def _active_teams():
     return [replace(t, standing=None, final_standing=None) for t in SEASON.teams]

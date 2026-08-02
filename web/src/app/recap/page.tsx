@@ -4,16 +4,21 @@ import { AwardBadge } from "@/components/cards/AwardBadge";
 import { LuckMeter } from "@/components/cards/LuckMeter";
 import { MatchupCard } from "@/components/cards/MatchupCard";
 import { RecapCard } from "@/components/cards/RecapCard";
+import { PowerBlurbs, type PowerBlurbRow } from "@/components/recap/PowerBlurbs";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
+  getEloHistory,
   getRecapAwards,
   getRecapLuck,
+  getSeasonPowerRankings,
   getSeasons,
+  getStreaks,
   getTopPerformers,
 } from "@/lib/queries";
 import { getRevealState } from "@/lib/reveal";
 import { resolveSeason } from "@/lib/resolve-season";
 import { getRecapMatchups } from "@/lib/recap";
+import { powerBlurb, type PowerBlurbInput } from "@/lib/power-blurbs";
 import type { RecapMatchupRow } from "@/lib/types";
 
 interface RecapPageProps {
@@ -44,6 +49,57 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
   const biggestBust = awards.find((a) => a.type === "BIGGEST_BUST") ?? null;
   const seasonYear =
     getSeasons().find((s) => s.id === seasonId)?.year ?? new Date().getFullYear();
+
+  const rankings = await getSeasonPowerRankings(seasonId);
+  const history = await getEloHistory(seasonId);
+  const streaks = await getStreaks(seasonId, weekNum);
+
+  const ratingAtWeek = (wk: number) =>
+    new Map(history.filter((h) => h.week_num === wk).map((h) => [h.id, h.rating]));
+  const curRatings = ratingAtWeek(weekNum);
+  const prevRatings = ratingAtWeek(weekNum - 1);
+
+  const prevOrder = [...rankings]
+    .filter((t) => prevRatings.has(t.id))
+    .sort((a, b) => (prevRatings.get(b.id) ?? 0) - (prevRatings.get(a.id) ?? 0));
+  const prevRankByTeam = new Map(prevOrder.map((t, i) => [t.id, i + 1]));
+
+  const streakByTeam = new Map(
+    streaks.map((s) => [s.team_id, { kind: s.type, count: s.streak }])
+  );
+  const luckByTeam = new Map(luck.map((l) => [l.id, l.luck_score]));
+  const weeklyPoints = new Map<number, number>();
+  for (const m of results) {
+    weeklyPoints.set(m.hid, m.home_score);
+    weeklyPoints.set(m.aid, m.away_score);
+  }
+
+  const powerOrder = [...rankings].sort((a, b) => {
+    const ra = curRatings.get(a.id);
+    const rb = curRatings.get(b.id);
+    if (ra === undefined && rb === undefined) return 0;
+    if (ra === undefined) return 1;
+    if (rb === undefined) return -1;
+    return rb - ra;
+  });
+
+  const powerRows: PowerBlurbRow[] = powerOrder.map((team, i) => {
+    const rank = i + 1;
+    const blurbInput: PowerBlurbInput = {
+      rank,
+      prevRank: prevRankByTeam.get(team.id) ?? null,
+      points: weeklyPoints.get(team.id) ?? team.points_for,
+      streak: streakByTeam.get(team.id) ?? { kind: "W", count: 0 },
+      luckScore: luckByTeam.get(team.id) ?? null,
+    };
+    return {
+      teamId: team.id,
+      name: team.name,
+      color: team.color,
+      rank,
+      blurb: powerBlurb(blurbInput),
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -119,6 +175,19 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
           </Stagger>
         )}
       </section>
+
+      {powerRows.length > 0 && (
+        <section>
+          <Reveal>
+            <h2 className="mb-3 font-display text-sm font-semibold tracking-widest text-zinc-500 uppercase">
+              Power Rankings
+            </h2>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <PowerBlurbs rows={powerRows} />
+          </Reveal>
+        </section>
+      )}
 
       <section>
         <Reveal>
