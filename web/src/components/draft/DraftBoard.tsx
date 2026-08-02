@@ -1,3 +1,4 @@
+import { PlayerLink } from "@/components/links/PlayerLink";
 import { TeamLink } from "@/components/links/TeamLink";
 import { PositionBadge } from "@/components/players/PositionBadge";
 import {
@@ -71,7 +72,12 @@ function DraftRow({ pick }: { pick: DraftPickRow }) {
           <PositionBadge position={pick.position} />
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="truncate text-sm font-medium">{pick.player_name}</span>
+              <PlayerLink
+                playerId={pick.player_id}
+                className="truncate text-sm font-medium transition-colors hover:text-emerald-400"
+              >
+                {pick.player_name}
+              </PlayerLink>
               {pick.keeper_status > 0 && <KeeperBadge />}
             </div>
             {pick.nfl_team && <p className="text-xs text-muted-foreground">{pick.nfl_team}</p>}

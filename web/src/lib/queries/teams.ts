@@ -135,10 +135,11 @@ export function getTeamRecord(seasonId: number, teamId: number) {
 export function getTeamPlayerHistory(seasonId: number, teamId: number): TeamPlayerHistoryRow[] {
   return db
     .prepare(
-      `SELECT r.espn_player_id, r.player_name, r.position, r.nfl_team,
+      `SELECT pp.id AS player_id, r.player_name, r.position, r.nfl_team,
               MIN(w.week_num) AS first_week, MAX(w.week_num) AS last_week,
               COUNT(*) AS weeks_held, SUM(r.points) AS total_points
        FROM rosters r JOIN weeks w ON w.id = r.week_id
+       LEFT JOIN players pp ON pp.espn_player_id = r.espn_player_id
        WHERE w.season_id = ? AND r.team_id = ?
        GROUP BY r.espn_player_id, r.player_name, r.position, r.nfl_team
        ORDER BY first_week, total_points DESC`
@@ -149,9 +150,10 @@ export function getTeamPlayerHistory(seasonId: number, teamId: number): TeamPlay
 export function getPositionLeaders(seasonId: number, limit = 5): PositionLeaders[] {
   const rows = db
     .prepare(
-      `SELECT r.espn_player_id, r.player_name, r.position,
+      `SELECT pp.id AS player_id, r.player_name, r.position,
               SUM(r.points) total_points, COUNT(*) games
        FROM rosters r JOIN weeks w ON w.id = r.week_id
+       LEFT JOIN players pp ON pp.espn_player_id = r.espn_player_id
        WHERE w.season_id = ? AND r.lineup_slot != 'BN'
        GROUP BY r.espn_player_id, r.player_name, r.position
        ORDER BY r.position, total_points DESC`

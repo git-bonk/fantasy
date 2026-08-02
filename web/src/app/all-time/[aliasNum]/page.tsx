@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarRange, Target, TrendingUp, Trophy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/cards/StatCard";
 import { OwnerEloChart } from "@/components/charts/OwnerEloChart";
 import { CareerTeamsTable } from "@/components/all-time/CareerTeamsTable";
@@ -15,7 +17,7 @@ import {
   getOwnerTrophiesByAlias,
   pickSeasonExtremes,
 } from "@/lib/queries";
-import { fmtRecord, initials, ownerColor } from "@/lib/format";
+import { fmtRecord, ownerColor } from "@/lib/format";
 
 interface OwnerDetailPageProps {
   params: Promise<{ aliasNum: string }>;
@@ -60,24 +62,10 @@ export default async function OwnerDetailPage({ params }: OwnerDetailPageProps) 
         </Link>
       </Reveal>
 
-      <Reveal delay={0.03}>
-        <div className="flex items-center gap-4">
-          <span
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl font-display text-lg font-bold"
-            style={{ backgroundColor: `${color}1f`, color }}
-          >
-            {initials(owner.display_name)}
-          </span>
-          <div className="min-w-0">
-            <h1 className="truncate font-display text-2xl font-bold tracking-tight md:text-3xl">
-              {owner.display_name}
-            </h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Running Elo {Math.round(owner.rating)} · career {record}
-            </p>
-          </div>
-        </div>
-      </Reveal>
+      <PageHeader
+        title={owner.display_name}
+        subtitle={`Running Elo ${Math.round(owner.rating)} · career ${record}`}
+      />
 
       <Reveal delay={0.06}>
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -135,9 +123,7 @@ export default async function OwnerDetailPage({ params }: OwnerDetailPageProps) 
             {history.length > 0 ? (
               <OwnerEloChart history={history} color={color} />
             ) : (
-              <p className="py-12 text-center text-sm text-zinc-500">
-                No rating history recorded yet.
-              </p>
+              <EmptyState message="No rating history recorded yet." />
             )}
           </CardContent>
         </Card>

@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/table";
 import { CountUp } from "@/components/motion/CountUp";
 import { Reveal } from "@/components/motion/Reveal";
+import { PageHeader } from "@/components/PageHeader";
+import { PlayerLink } from "@/components/links/PlayerLink";
 import { SeasonPointsChart } from "@/components/charts/SeasonPointsChart";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import {
@@ -68,34 +70,38 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
         </Link>
       </Reveal>
 
-      <Reveal>
-        <div className="flex flex-wrap items-center gap-4">
+      <PageHeader
+        title={team.name}
+        subtitle={`Owned by ${team.owner_name}`}
+        leading={
           <span
-            className="flex h-16 w-16 items-center justify-center rounded-2xl font-display text-lg font-bold"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl font-display text-lg font-bold"
             style={{ backgroundColor: `${team.color}1f`, color: team.color }}
           >
             {team.abbrev}
           </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="font-display text-2xl font-bold tracking-tight md:text-3xl">
-              {team.name}
-            </h1>
-            <p className="text-sm text-zinc-400">Owned by {team.owner_name}</p>
+        }
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            {teamStreak && (
+              <StreakBadge
+                streak={teamStreak.streak}
+                type={teamStreak.type}
+                className="px-2 py-1 text-xs"
+              />
+            )}
+            {record?.playoff_seed != null ? (
+              <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
+                Playoff Seed #{record.playoff_seed}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-zinc-700 text-zinc-500">
+                Missed Playoffs
+              </Badge>
+            )}
           </div>
-          {teamStreak && (
-            <StreakBadge streak={teamStreak.streak} type={teamStreak.type} className="px-2 py-1 text-xs" />
-          )}
-          {record?.playoff_seed != null ? (
-            <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-400">
-              Playoff Seed #{record.playoff_seed}
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="border-zinc-700 text-zinc-500">
-              Missed Playoffs
-            </Badge>
-          )}
-        </div>
-      </Reveal>
+        }
+      />
 
       <Reveal delay={0.05}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -250,10 +256,17 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                   const active = p.last_week >= maxRegularWeek;
                   return (
                     <TableRow
-                      key={`${p.espn_player_id}-${p.first_week}`}
+                      key={`${p.player_id ?? p.player_name}-${p.first_week}`}
                       className="border-zinc-800/70"
                     >
-                      <TableCell className="py-2.5 font-semibold">{p.player_name}</TableCell>
+                      <TableCell className="py-2.5 font-semibold">
+                        <PlayerLink
+                          playerId={p.player_id}
+                          className="transition-colors hover:text-emerald-400"
+                        >
+                          {p.player_name}
+                        </PlayerLink>
+                      </TableCell>
                       <TableCell className="py-2.5 font-mono text-xs text-zinc-400">
                         {p.position}
                       </TableCell>

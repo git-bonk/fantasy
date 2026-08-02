@@ -11,7 +11,15 @@ describe("scopeFor", () => {
   });
 
   it("is week-independent for season-long views", () => {
-    for (const p of ["/rankings", "/rivalry", "/transactions", "/trends", "/records"]) {
+    for (const p of [
+      "/rankings",
+      "/rivalry",
+      "/transactions",
+      "/trends",
+      "/records",
+      "/draft",
+      "/all-time",
+    ]) {
       expect(scopeFor(p)).toEqual({ year: true, week: false });
     }
   });
@@ -25,7 +33,7 @@ describe("scopeFor", () => {
   });
 
   it("shows both selectors for week-scoped pages", () => {
-    for (const p of ["/scores", "/recap", "/predict", "/playoffs", "/all-time", "/players"]) {
+    for (const p of ["/scores", "/recap", "/predict", "/playoffs", "/players"]) {
       expect(scopeFor(p)).toEqual({ year: true, week: true });
     }
   });

@@ -17,6 +17,8 @@ export function scopeFor(pathname: string): SelectorScope {
     root === "transactions" ||
     root === "trends" ||
     root === "records" ||
+    root === "draft" ||
+    root === "all-time" ||
     (root === "teams" && seg.length > 1);
 
   return { year: true, week: !weekIndependent };

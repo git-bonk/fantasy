@@ -1,10 +1,13 @@
+import Link from "next/link";
 import { Check, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { WinProbBar } from "@/components/charts/WinProbBar";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
   getPredictData,
+  getSeasons,
 } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
 import { fmtPts } from "@/lib/format";
@@ -21,8 +24,18 @@ interface PredictPageProps {
 
 export default async function PredictPage({ searchParams }: PredictPageProps) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weeks } = ctx;
+  const { seasonId, weeks, year } = ctx;
   const weekNum = Math.max(ctx.weekNum, 2);
+
+  const prevSeason = getSeasons().find((s) => s.year < year);
+  const prevSeasonAction = prevSeason ? (
+    <Link
+      href={`/predict?year=${prevSeason.year}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      View {prevSeason.year} instead
+    </Link>
+  ) : undefined;
 
   const matchups = (await getPredictData(seasonId, weekNum)).filter(
     (m): m is PredictMatchupRow & { h_elo: number; a_elo: number } =>
@@ -49,9 +62,10 @@ export default async function PredictPage({ searchParams }: PredictPageProps) {
 
       {withProbs.length === 0 ? (
         <Reveal>
-          <p className="py-16 text-center text-sm text-zinc-500">
-            No prediction data available for this week.
-          </p>
+          <EmptyState
+            message="No prediction data available for this week."
+            action={prevSeasonAction}
+          />
         </Reveal>
       ) : (
         <>

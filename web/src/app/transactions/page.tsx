@@ -1,14 +1,23 @@
+import Link from "next/link";
 import {
+  getSeasons,
   getTopMoves,
   getTradeGrades,
   getTransactions,
   getWaiverLeaderboard,
 } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
+import { PageHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TransactionFeed } from "@/components/transactions/TransactionFeed";
 import { TradeGrades } from "@/components/transactions/TradeGrades";
 import { WaiverImpact } from "@/components/transactions/WaiverImpact";
 import { Reveal } from "@/components/motion/Reveal";
+
+const EMPTY_ACTION =
+  "inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400";
 
 export default async function TransactionsPage({
   searchParams,
@@ -24,58 +33,67 @@ export default async function TransactionsPage({
     getWaiverLeaderboard(seasonId),
   ]);
 
+  const noWaiver =
+    topMoves.gems.length === 0 && topMoves.regrets.length === 0 && leaderboard.length === 0;
+  const isEmpty = transactions.length === 0 && trades.length === 0 && noWaiver;
+  const prevSeason = getSeasons().find((s) => s.year < ctx.year);
+
   return (
     <div className="space-y-8">
-      <Reveal>
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Transactions</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Waiver wire moves and roster changes across the season.
-          </p>
-        </div>
-      </Reveal>
+      <PageHeader
+        title="Transactions"
+        subtitle="Waiver wire moves and roster changes across the season."
+      />
 
-      <Reveal delay={0.05}>
-        <section className="space-y-4">
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight">Trade grades</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Who won each deal, by points the received players produced over the next four weeks.
-            </p>
-          </div>
-          <TradeGrades trades={trades} />
-        </section>
-      </Reveal>
-
-      <Reveal delay={0.15}>
-        <section className="space-y-4">
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight">Waiver wire impact</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Stolen gems, regret drops, and each owner&apos;s net points from the wire.
-            </p>
-          </div>
-          <WaiverImpact moves={topMoves} leaderboard={leaderboard} />
-        </section>
-      </Reveal>
-
-      <Reveal delay={0.2}>
-        <section className="space-y-4">
-          <div>
-            <h2 className="font-display text-xl font-bold tracking-tight">Transaction feed</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Every add, drop, and trade — one week at a time.
-            </p>
-          </div>
-          {transactions.length > 0 ? (
-            <TransactionFeed transactions={transactions} />
-          ) : (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-              No transactions recorded this season.
-            </div>
-          )}
-        </section>
-      </Reveal>
+      {isEmpty ? (
+        <Reveal delay={0.05}>
+          <EmptyState
+            message="No transactions recorded this season."
+            action={
+              prevSeason && (
+                <Link href={`/transactions?year=${prevSeason.year}`} className={EMPTY_ACTION}>
+                  View {prevSeason.year} season
+                </Link>
+              )
+            }
+          />
+        </Reveal>
+      ) : (
+        <Reveal delay={0.05}>
+          <Tabs defaultValue="trade-grades">
+            <TabsList>
+              <TabsTrigger value="trade-grades">Trade grades</TabsTrigger>
+              <TabsTrigger value="waiver-impact">Waiver impact</TabsTrigger>
+              <TabsTrigger value="feed">Feed</TabsTrigger>
+            </TabsList>
+            <TabsContent value="trade-grades" className="mt-4 space-y-4">
+              <SectionHeader
+                title="Trade grades"
+                description="Who won each deal, by points the received players produced over the next four weeks."
+              />
+              <TradeGrades trades={trades} />
+            </TabsContent>
+            <TabsContent value="waiver-impact" className="mt-4 space-y-4">
+              <SectionHeader
+                title="Waiver wire impact"
+                description="Stolen gems, regret drops, and each owner's net points from the wire."
+              />
+              <WaiverImpact moves={topMoves} leaderboard={leaderboard} />
+            </TabsContent>
+            <TabsContent value="feed" className="mt-4 space-y-4">
+              <SectionHeader
+                title="Transaction feed"
+                description="Every add, drop, and trade — one week at a time."
+              />
+              {transactions.length > 0 ? (
+                <TransactionFeed transactions={transactions} year={ctx.year} />
+              ) : (
+                <EmptyState message="No transactions recorded this season." />
+              )}
+            </TabsContent>
+          </Tabs>
+        </Reveal>
+      )}
     </div>
   );
 }

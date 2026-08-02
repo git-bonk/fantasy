@@ -1,5 +1,7 @@
 import { getRecords, getShameData } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
+import { EmptyState } from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { RecordCategory } from "@/components/records/RecordCategory";
 import { ShameCorner } from "@/components/records/ShameCorner";
 import { Reveal } from "@/components/motion/Reveal";
@@ -41,24 +43,24 @@ export default async function RecordsPage({
 
   return (
     <div className="space-y-8">
-      <Reveal>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-display text-3xl font-bold tracking-tight">Hall of Fame</h1>
-          </div>
-          <p className="mt-1 text-sm text-zinc-400">
-            The league&apos;s all-time records and most dominant performances.
-          </p>
-        </div>
-      </Reveal>
+      <PageHeader
+        title="Hall of Fame"
+        subtitle="The league's all-time records and most dominant performances."
+      />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        {groups.map((group, i) => (
-          <Reveal key={group.category} delay={0.05 + i * 0.04}>
-            <RecordCategory category={group.category} records={group.rows} />
-          </Reveal>
-        ))}
-      </div>
+      {groups.length === 0 ? (
+        <Reveal>
+          <EmptyState message="No records recorded yet." />
+        </Reveal>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {groups.map((group, i) => (
+            <Reveal key={group.category} delay={0.05 + i * 0.04}>
+              <RecordCategory category={group.category} records={group.rows} />
+            </Reveal>
+          ))}
+        </div>
+      )}
 
       <ShameCorner items={await getShameData(seasonId)} />
     </div>

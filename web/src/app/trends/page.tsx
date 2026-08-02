@@ -1,6 +1,7 @@
 import { Flame } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { PointsTrend } from "@/components/charts/PointsTrend";
 import { TeamPointsChart } from "@/components/charts/TeamPointsChart";
@@ -9,6 +10,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import {
   getHeadToHead,
   getLeagueTrend,
+  getSeasons,
   getStreaks,
   getTeamTrends,
 } from "@/lib/queries";
@@ -22,6 +24,15 @@ export default async function TrendsPage({
 }) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
+  const prevSeason = getSeasons().find((s) => s.year < ctx.year);
+  const prevSeasonAction = prevSeason ? (
+    <Link
+      href={`/trends?year=${prevSeason.year}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      View {prevSeason.year} instead
+    </Link>
+  ) : undefined;
   const leagueTrend = getLeagueTrend(seasonId);
   const teamTrends = await getTeamTrends(seasonId);
   const streaks = await getStreaks(seasonId);
@@ -69,9 +80,10 @@ export default async function TrendsPage({
             </CardHeader>
             <CardContent className="pt-2">
               {streaks.length === 0 ? (
-                <p className="py-8 text-center text-sm text-zinc-500">
-                  No active streaks of 2+ games.
-                </p>
+                <EmptyState
+                  message="No active streaks of 2+ games."
+                  action={prevSeasonAction}
+                />
               ) : (
                 <div className="divide-y divide-zinc-800/70">
                   {streaks.slice(0, 8).map((s) => (

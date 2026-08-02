@@ -1,10 +1,14 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { RivalryPicker } from "@/components/rivalry/RivalryPicker";
 import { TeamLink } from "@/components/links/TeamLink";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
-import { getRivalryGames, getTeam, getTeams } from "@/lib/queries";
+import { getRivalryGames, getSeasons, getTeam, getTeams } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
 import { fmtPts } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -37,6 +41,23 @@ function TeamLockup({ team, flip }: { team: Team; flip?: boolean }) {
   );
 }
 
+interface SeasonJumpLinkProps {
+  year: number;
+  href: string;
+}
+
+function SeasonJumpLink({ year, href }: SeasonJumpLinkProps) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      <ArrowLeft className="h-3.5 w-3.5" />
+      View {year} season
+    </Link>
+  );
+}
+
 interface StatChipProps {
   label: string;
   children: React.ReactNode;
@@ -54,6 +75,7 @@ function StatChip({ label, children }: StatChipProps) {
 export default async function RivalryPage({ searchParams }: RivalryPageProps) {
   const ctx = await resolveSeason(searchParams);
   const seasonId = ctx.seasonId;
+  const prevYear = getSeasons().find((s) => s.year < ctx.year)?.year ?? null;
   const teams = await getTeams(seasonId);
   const validIds = teams.map((t) => t.id);
 
@@ -61,7 +83,16 @@ export default async function RivalryPage({ searchParams }: RivalryPageProps) {
     return (
       <div className="space-y-6">
         <PageHeader title="Rivalry Finder" subtitle="Head-to-head this season" />
-        <p className="py-16 text-center text-sm text-zinc-500">Not enough teams to compare.</p>
+        <Reveal>
+          <EmptyState
+            message="Not enough teams to compare."
+            action={
+              prevYear != null ? (
+                <SeasonJumpLink year={prevYear} href={`/rivalry?year=${prevYear}`} />
+              ) : undefined
+            }
+          />
+        </Reveal>
       </div>
     );
   }
@@ -114,11 +145,23 @@ export default async function RivalryPage({ searchParams }: RivalryPageProps) {
 
   const record = `${aWins}\u2013${bWins}${ties > 0 ? `\u2013${ties}` : ""}`;
   const seriesText =
-    aWins > bWins
-      ? `${teamA.name} lead ${record}`
-      : bWins > aWins
-        ? `${teamB.name} lead ${bWins}\u2013${aWins}${ties > 0 ? `\u2013${ties}` : ""}`
-        : `Series tied ${record}`;
+    aWins > bWins ? (
+      <>
+        <TeamLink teamId={teamA.id} className="transition-colors hover:text-emerald-400">
+          {teamA.name}
+        </TeamLink>
+        {` lead ${record}`}
+      </>
+    ) : bWins > aWins ? (
+      <>
+        <TeamLink teamId={teamB.id} className="transition-colors hover:text-emerald-400">
+          {teamB.name}
+        </TeamLink>
+        {` lead ${bWins}\u2013${aWins}${ties > 0 ? `\u2013${ties}` : ""}`}
+      </>
+    ) : (
+      `Series tied ${record}`
+    );
 
   return (
     <div className="space-y-6">
@@ -175,15 +218,21 @@ export default async function RivalryPage({ searchParams }: RivalryPageProps) {
 
       <section className="space-y-3">
         <Reveal>
-          <h2 className="font-display text-sm font-semibold tracking-widest text-zinc-500 uppercase">
-            Meetings ({meetings})
-          </h2>
+          <SectionHeader title={`Meetings (${meetings})`} />
         </Reveal>
         {meetings === 0 ? (
           <Reveal>
-            <p className="py-12 text-center text-sm text-zinc-500">
-              These two teams have never faced off.
-            </p>
+            <EmptyState
+              message="These two teams have never faced off this season."
+              action={
+                prevYear != null ? (
+                  <SeasonJumpLink
+                    year={prevYear}
+                    href={`/rivalry?a=${a}&b=${b}&year=${prevYear}`}
+                  />
+                ) : undefined
+              }
+            />
           </Reveal>
         ) : (
           <Stagger className="space-y-2" stagger={0.04}>

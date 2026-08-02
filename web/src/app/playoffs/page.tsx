@@ -10,6 +10,8 @@ import {
   getStreaks,
 } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
+import { PageHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { StandingsTable } from "@/components/playoffs/StandingsTable";
 import { PlayoffScenarios } from "@/components/playoffs/PlayoffScenarios";
 import { RemainingSosTable } from "@/components/playoffs/RemainingSosTable";
@@ -72,14 +74,10 @@ export default async function PlayoffsPage({
 
   return (
     <div className="space-y-8">
-      <Reveal>
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Playoffs</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Standings, odds, and the road to the championship.
-          </p>
-        </div>
-      </Reveal>
+      <PageHeader
+        title="Playoffs"
+        subtitle="Standings, odds, and the road to the championship."
+      />
 
       {champion && (
         <Reveal delay={0.05}>
@@ -117,7 +115,7 @@ export default async function PlayoffsPage({
 
       <Reveal delay={0.1}>
         <section className="space-y-4">
-          <h2 className="font-display text-xl font-semibold tracking-tight">Standings</h2>
+          <SectionHeader title="Standings" />
           <StandingsTable standings={standings} playoffTeams={playoffTeams} streaks={streaks} />
         </section>
       </Reveal>
@@ -125,9 +123,7 @@ export default async function PlayoffsPage({
       {scenarios.length > 0 && (
         <Reveal delay={0.11}>
           <section className="space-y-4">
-            <h2 className="font-display text-xl font-semibold tracking-tight">
-              Playoff scenarios
-            </h2>
+            <SectionHeader title="Playoff scenarios" />
             <PlayoffScenarios rows={scenarios} />
           </section>
         </Reveal>
@@ -136,9 +132,7 @@ export default async function PlayoffsPage({
       {remainingSos.length > 0 && (
         <Reveal delay={0.12}>
           <section className="space-y-4">
-            <h2 className="font-display text-xl font-semibold tracking-tight">
-              Remaining schedule
-            </h2>
+            <SectionHeader title="Remaining schedule" />
             <RemainingSosTable rows={remainingSos} throughWeek={throughWeek} />
           </section>
         </Reveal>
@@ -146,7 +140,7 @@ export default async function PlayoffsPage({
 
       <Reveal delay={0.15}>
         <section className="space-y-4">
-          <h2 className="font-display text-xl font-semibold tracking-tight">Bracket</h2>
+          <SectionHeader title="Bracket" />
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 md:p-6">
             <Bracket games={bracket} />
           </div>

@@ -1,5 +1,6 @@
 import { ChevronRight, History, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { AliasTag } from "@/components/cards/AliasTag";
 import { StatCard } from "@/components/cards/StatCard";
@@ -94,9 +95,7 @@ export default async function HistoryPage() {
 
       {ownerList.length === 0 ? (
         <Reveal>
-          <p className="py-16 text-center text-sm text-zinc-500">
-            No owners recorded yet.
-          </p>
+          <EmptyState message="No owners recorded yet." />
         </Reveal>
       ) : (
         <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>

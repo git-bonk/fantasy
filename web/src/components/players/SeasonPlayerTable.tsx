@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import {
   Table,
@@ -12,7 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AliasTag } from "@/components/cards/AliasTag";
+import { EmptyState } from "@/components/EmptyState";
 import { PositionBadge } from "@/components/players/PositionBadge";
+import { PlayerLink } from "@/components/links/PlayerLink";
 import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
@@ -38,6 +39,8 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   total_points: "desc",
   ppg: "desc",
 };
+
+const COLLAPSED_LIMIT = 25;
 
 function sortValue(row: SeasonPlayerTableRow, key: SortKey): number | string {
   switch (key) {
@@ -99,6 +102,7 @@ interface SeasonPlayerTableProps {
 export function SeasonPlayerTable({ rows, revealed }: SeasonPlayerTableProps) {
   const [sortBy, setSortBy] = useState<SortKey>("total_points");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [showAll, setShowAll] = useState(false);
 
   const handleSort = (key: SortKey) => {
     if (key === sortBy) {
@@ -125,147 +129,156 @@ export function SeasonPlayerTable({ rows, revealed }: SeasonPlayerTableProps) {
   }, [rows, sortBy, sortDir]);
 
   if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-        No players appeared on a roster this season.
-      </div>
-    );
+    return <EmptyState message="No players appeared on a roster this season." />;
   }
 
+  const visible = showAll ? sorted : sorted.slice(0, COLLAPSED_LIMIT);
+
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
-      <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="w-10 text-center text-muted-foreground">#</TableHead>
-            <TableHead>
-              <SortHeader
-                label="Player"
-                sortKey="player_name"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={handleSort}
-              />
-            </TableHead>
-            <TableHead className="text-right">
-              <SortHeader
-                label="GP"
-                sortKey="games"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className="hidden text-right sm:table-cell">
-              <SortHeader
-                label="GS"
-                sortKey="starts"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className="hidden text-right md:table-cell">
-              <SortHeader
-                label="BN"
-                sortKey="benches"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className="text-right">
-              <SortHeader
-                label="Pts"
-                sortKey="total_points"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className="text-right">
-              <SortHeader
-                label="Pts/G"
-                sortKey="ppg"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSort={handleSort}
-                align="right"
-              />
-            </TableHead>
-            <TableHead className="hidden text-muted-foreground lg:table-cell">Team</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sorted.map((row, i) => (
-            <TableRow
-              key={`${row.espn_player_id}-${i}`}
-              className="border-zinc-800/70 transition-colors hover:bg-foreground/[0.03]"
-            >
-              <TableCell className="text-center">
-                <span className="font-mono text-xs font-bold tabular-nums text-muted-foreground">
-                  {i + 1}
-                </span>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2.5">
-                  <PositionBadge position={row.position} />
-                  <div className="min-w-0">
-                    <Link
-                      href={`/players/${row.espn_player_id}`}
-                      className="block truncate text-sm font-medium transition-colors hover:text-emerald-400"
-                    >
-                      {row.player_name}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">{row.nfl_team}</p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-mono text-sm tabular-nums">
-                {row.games}
-              </TableCell>
-              <TableCell className="hidden text-right font-mono text-sm tabular-nums sm:table-cell">
-                {row.starts}
-              </TableCell>
-              <TableCell className="hidden text-right font-mono text-sm tabular-nums md:table-cell">
-                {row.benches}
-              </TableCell>
-              <TableCell className="text-right font-mono text-sm font-bold tabular-nums">
-                {fmtPts(row.total_points)}
-              </TableCell>
-              <TableCell className="text-right font-mono text-sm tabular-nums text-zinc-300">
-                {fmtPts(row.ppg)}
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                {row.team_id != null && row.tname != null ? (
-                  <TeamLink
-                    teamId={row.team_id}
-                    className="flex items-center gap-1.5 transition-colors hover:text-emerald-400"
-                  >
-                    {row.color && (
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: row.color }}
-                      />
-                    )}
-                    {revealed ? (
-                      <span className="truncate text-xs">{row.tname}</span>
-                    ) : (
-                      <AliasTag label={row.tname} />
-                    )}
-                  </TeamLink>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </TableCell>
+    <div>
+      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/60">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-10 text-center text-muted-foreground">#</TableHead>
+              <TableHead>
+                <SortHeader
+                  label="Player"
+                  sortKey="player_name"
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortHeader
+                  label="GP"
+                  sortKey="games"
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="hidden text-right sm:table-cell">
+                <SortHeader
+                  label="GS"
+                  sortKey="starts"
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="hidden text-right md:table-cell">
+                <SortHeader
+                  label="BN"
+                  sortKey="benches"
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortHeader
+                  label="Pts"
+                  sortKey="total_points"
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="text-right">
+                <SortHeader
+                  label="Pts/G"
+                  sortKey="ppg"
+                  sortBy={sortBy}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  align="right"
+                />
+              </TableHead>
+              <TableHead className="hidden text-muted-foreground lg:table-cell">Team</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {visible.map((row, i) => (
+              <TableRow
+                key={`${row.player_id ?? row.player_name}-${i}`}
+                className="border-zinc-800/70 transition-colors hover:bg-foreground/[0.03]"
+              >
+                <TableCell className="text-center">
+                  <span className="font-mono text-xs font-bold tabular-nums text-muted-foreground">
+                    {i + 1}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2.5">
+                    <PositionBadge position={row.position} />
+                    <div className="min-w-0">
+                      <PlayerLink
+                        playerId={row.player_id}
+                        className="block truncate text-sm font-medium transition-colors hover:text-emerald-400"
+                      >
+                        {row.player_name}
+                      </PlayerLink>
+                      <p className="text-xs text-muted-foreground">{row.nfl_team}</p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm tabular-nums">
+                  {row.games}
+                </TableCell>
+                <TableCell className="hidden text-right font-mono text-sm tabular-nums sm:table-cell">
+                  {row.starts}
+                </TableCell>
+                <TableCell className="hidden text-right font-mono text-sm tabular-nums md:table-cell">
+                  {row.benches}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm font-bold tabular-nums">
+                  {fmtPts(row.total_points)}
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm tabular-nums text-zinc-300">
+                  {fmtPts(row.ppg)}
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  {row.team_id != null && row.tname != null ? (
+                    <TeamLink
+                      teamId={row.team_id}
+                      className="flex items-center gap-1.5 transition-colors hover:text-emerald-400"
+                    >
+                      {row.color && (
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: row.color }}
+                        />
+                      )}
+                      {revealed ? (
+                        <span className="truncate text-xs">{row.tname}</span>
+                      ) : (
+                        <AliasTag label={row.tname} />
+                      )}
+                    </TeamLink>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      {rows.length > COLLAPSED_LIMIT && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="mt-3 w-full rounded-lg border border-zinc-800 bg-zinc-900/60 py-2 text-xs font-semibold text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-200"
+        >
+          {showAll ? "Show top 25" : `Show all ${rows.length} players`}
+        </button>
+      )}
     </div>
   );
 }

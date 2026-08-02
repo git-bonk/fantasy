@@ -1,5 +1,8 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { AwardBadge } from "@/components/cards/AwardBadge";
 import { LuckMeter } from "@/components/cards/LuckMeter";
 import { MatchupCard } from "@/components/cards/MatchupCard";
@@ -27,7 +30,18 @@ interface RecapPageProps {
 
 export default async function RecapPage({ searchParams }: RecapPageProps) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum, weeks } = ctx;
+  const { seasonId, weekNum, weeks, year } = ctx;
+
+  const seasons = getSeasons();
+  const prevSeason = seasons.find((s) => s.year < year);
+  const prevSeasonAction = prevSeason ? (
+    <Link
+      href={`/recap?year=${prevSeason.year}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      View {prevSeason.year} instead
+    </Link>
+  ) : undefined;
 
   const results = await getRecapMatchups(seasonId, weekNum);
   const revealed = await getRevealState();
@@ -48,7 +62,7 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
   const topScorer = (await getTopPerformers(seasonId, weekNum))[0] ?? null;
   const biggestBust = awards.find((a) => a.type === "BIGGEST_BUST") ?? null;
   const seasonYear =
-    getSeasons().find((s) => s.id === seasonId)?.year ?? new Date().getFullYear();
+    seasons.find((s) => s.id === seasonId)?.year ?? new Date().getFullYear();
 
   const rankings = await getSeasonPowerRankings(seasonId);
   const history = await getEloHistory(seasonId);
@@ -109,10 +123,8 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
       />
 
       <section>
-        <Reveal>
-          <h2 className="mb-3 font-display text-sm font-semibold tracking-widest text-zinc-500 uppercase">
-            Share This Week
-          </h2>
+        <Reveal className="mb-3">
+          <SectionHeader title="Share This Week" />
         </Reveal>
         <Reveal delay={0.05}>
           <div className="flex justify-center rounded-2xl border border-zinc-800/60 bg-zinc-950/40 p-6 sm:p-8">
@@ -131,16 +143,15 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
       </section>
 
       <section>
-        <Reveal>
-          <h2 className="mb-3 font-display text-sm font-semibold tracking-widest text-zinc-500 uppercase">
-            Results
-          </h2>
+        <Reveal className="mb-3">
+          <SectionHeader title="Results" />
         </Reveal>
         {results.length === 0 ? (
           <Reveal>
-            <p className="py-8 text-center text-sm text-zinc-500">
-              No matchups recorded for this week.
-            </p>
+            <EmptyState
+              message="No matchups recorded for this week."
+              action={prevSeasonAction}
+            />
           </Reveal>
         ) : (
           <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>
@@ -154,16 +165,15 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
       </section>
 
       <section>
-        <Reveal>
-          <h2 className="mb-3 font-display text-sm font-semibold tracking-widest text-zinc-500 uppercase">
-            Awards
-          </h2>
+        <Reveal className="mb-3">
+          <SectionHeader title="Awards" />
         </Reveal>
         {awards.length === 0 ? (
           <Reveal>
-            <p className="py-8 text-center text-sm text-zinc-500">
-              No awards recorded for this week.
-            </p>
+            <EmptyState
+              message="No awards recorded for this week."
+              action={prevSeasonAction}
+            />
           </Reveal>
         ) : (
           <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>
@@ -178,10 +188,8 @@ export default async function RecapPage({ searchParams }: RecapPageProps) {
 
       {powerRows.length > 0 && (
         <section>
-          <Reveal>
-            <h2 className="mb-3 font-display text-sm font-semibold tracking-widest text-zinc-500 uppercase">
-              Power Rankings
-            </h2>
+          <Reveal className="mb-3">
+            <SectionHeader title="Power Rankings" />
           </Reveal>
           <Reveal delay={0.05}>
             <PowerBlurbs rows={powerRows} />

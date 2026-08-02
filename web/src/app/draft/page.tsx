@@ -1,9 +1,23 @@
-import { getDraft, getDraftValue, roundValues, teamBestWorst } from "@/lib/queries";
+import Link from "next/link";
+import {
+  getDraft,
+  getDraftValue,
+  getSeasons,
+  roundValues,
+  teamBestWorst,
+} from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
+import { PageHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/SectionHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DraftBoard } from "@/components/draft/DraftBoard";
 import { BestWorstCards } from "@/components/draft/BestWorstCards";
 import { RoundValueChart } from "@/components/draft/RoundValueChart";
 import { Reveal } from "@/components/motion/Reveal";
+
+const EMPTY_ACTION =
+  "inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400";
 
 export default async function DraftPage({
   searchParams,
@@ -15,67 +29,66 @@ export default async function DraftPage({
   const [picks, value] = await Promise.all([getDraft(seasonId), getDraftValue(seasonId)]);
   const bestWorst = teamBestWorst(value);
   const rounds = roundValues(value);
+  const prevSeason = getSeasons().find((s) => s.year < ctx.year);
 
   return (
     <div className="space-y-8">
-      <Reveal>
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Draft</h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Draft day retrospective: the full board, every team&apos;s steals and busts, and where
-            the value was found.
-          </p>
-        </div>
-      </Reveal>
+      <PageHeader
+        title="Draft"
+        subtitle="Draft day retrospective: the full board, every team's steals and busts, and where the value was found."
+      />
 
       {picks.length === 0 ? (
         <Reveal delay={0.05}>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-            No draft data for this season yet.
-          </div>
+          <EmptyState
+            message="No draft data for this season yet."
+            action={
+              prevSeason && (
+                <Link href={`/draft?year=${prevSeason.year}`} className={EMPTY_ACTION}>
+                  View {prevSeason.year} draft
+                </Link>
+              )
+            }
+          />
         </Reveal>
       ) : (
-        <>
-          <Reveal delay={0.05}>
-            <section className="space-y-4">
-              <h2 className="font-display text-xl font-semibold tracking-tight">Draft board</h2>
+        <Reveal delay={0.05}>
+          <Tabs defaultValue="board">
+            <TabsList>
+              <TabsTrigger value="board">Board</TabsTrigger>
+              {bestWorst.length > 0 && (
+                <TabsTrigger value="best-worst">Steals & busts</TabsTrigger>
+              )}
+              {rounds.length > 0 && (
+                <TabsTrigger value="round-value">Value by round</TabsTrigger>
+              )}
+            </TabsList>
+            <TabsContent value="board" className="mt-4 space-y-4">
+              <SectionHeader title="Draft board" />
               <DraftBoard picks={picks} />
-            </section>
-          </Reveal>
-
-          {bestWorst.length > 0 && (
-            <Reveal delay={0.1}>
-              <section className="space-y-4">
-                <div>
-                  <h2 className="font-display text-xl font-bold tracking-tight">
-                    Steals &amp; busts
-                  </h2>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Each team&apos;s best and worst pick, by points produced versus the round&apos;s
-                    average.
-                  </p>
-                </div>
+            </TabsContent>
+            {bestWorst.length > 0 && (
+              <TabsContent value="best-worst" className="mt-4 space-y-4">
+                <SectionHeader
+                  title="Steals & busts"
+                  description="Each team's best and worst pick, by points produced versus the round's average."
+                />
                 <BestWorstCards teams={bestWorst} />
-              </section>
-            </Reveal>
-          )}
-
-          {rounds.length > 0 && (
-            <Reveal delay={0.15}>
-              <section className="space-y-4">
-                <div>
-                  <h2 className="font-display text-xl font-bold tracking-tight">Value by round</h2>
-                  <p className="mt-1 text-sm text-zinc-400">
-                    Average season points produced by picks in each round.
-                  </p>
-                </div>
+              </TabsContent>
+            )}
+            {rounds.length > 0 && (
+              <TabsContent value="round-value" className="mt-4 space-y-4">
+                <SectionHeader
+                  title="Value by round"
+                  description="Average season points produced by picks in each round."
+                />
                 <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
                   <RoundValueChart data={rounds} />
                 </div>
-              </section>
-            </Reveal>
-          )}
-        </>
+              </TabsContent>
+            )}
+          </Tabs>
+        </Reveal>
       )}
     </div>
   );

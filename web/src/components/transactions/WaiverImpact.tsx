@@ -1,4 +1,5 @@
 import { Gem, TrendingDown } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { OwnerLink } from "@/components/links/OwnerLink";
 import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
@@ -11,11 +12,7 @@ interface WaiverImpactProps {
 
 export function WaiverImpact({ moves, leaderboard }: WaiverImpactProps) {
   if (moves.gems.length === 0 && moves.regrets.length === 0 && leaderboard.length === 0) {
-    return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-        No waiver moves graded yet this season.
-      </div>
-    );
+    return <EmptyState message="No waiver moves graded yet this season." />;
   }
 
   return (

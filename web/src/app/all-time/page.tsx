@@ -1,4 +1,4 @@
-import { ChevronRight, Crown } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { AliasTag } from "@/components/cards/AliasTag";
 import { OwnerLink } from "@/components/links/OwnerLink";
@@ -37,15 +38,7 @@ export default async function AllTimePage() {
 
       {standings.length === 0 ? (
         <Reveal>
-          <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
-            <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-              <Crown className="h-8 w-8 text-zinc-600" />
-              <p className="max-w-sm text-sm text-zinc-500">
-                All-time rankings appear once your league has ingested owner data. They
-                track a running Elo that carries across seasons.
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState message="All-time rankings appear once your league has ingested owner data. They track a running Elo that carries across seasons." />
         </Reveal>
       ) : (
         <Reveal>

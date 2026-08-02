@@ -22,23 +22,49 @@ import {
 import { cn } from "@/lib/utils";
 import { useSeason } from "@/lib/season-context";
 
-const navItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/rankings", label: "Rankings", icon: Trophy },
-  { href: "/all-time", label: "All-Time", icon: Crown },
-  { href: "/scores", label: "Scores", icon: ClipboardList },
-  { href: "/recap", label: "Recap", icon: Newspaper },
-  { href: "/trends", label: "Trends", icon: TrendingUp },
-  { href: "/predict", label: "Model", icon: Brain },
-  { href: "/predictions", label: "Predictions", icon: Target },
-  { href: "/teams", label: "Teams", icon: Users },
-  { href: "/history", label: "League History", icon: History },
-  { href: "/playoffs", label: "Playoffs", icon: Swords },
-  { href: "/players", label: "Players", icon: Star },
-  { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
-  { href: "/draft", label: "Draft", icon: Gavel },
-  { href: "/records", label: "Records", icon: Medal },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+}
+
+const navGroups: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Week",
+    items: [
+      { href: "/", label: "Overview", icon: LayoutDashboard },
+      { href: "/scores", label: "Scores", icon: ClipboardList },
+      { href: "/recap", label: "Recap", icon: Newspaper },
+      { href: "/predict", label: "Model", icon: Brain },
+      { href: "/predictions", label: "Predictions", icon: Target },
+    ],
+  },
+  {
+    label: "League",
+    items: [
+      { href: "/rankings", label: "Rankings", icon: Trophy },
+      { href: "/playoffs", label: "Playoffs", icon: Swords },
+      { href: "/trends", label: "Trends", icon: TrendingUp },
+      { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+      { href: "/players", label: "Players", icon: Star },
+      { href: "/draft", label: "Draft", icon: Gavel },
+    ],
+  },
+  {
+    label: "Explore",
+    items: [
+      { href: "/teams", label: "Teams", icon: Users },
+      { href: "/all-time", label: "All-Time", icon: Crown },
+      { href: "/records", label: "Records", icon: Medal },
+    ],
+  },
+  {
+    label: "History",
+    items: [{ href: "/history", label: "League History", icon: History }],
+  },
 ];
+
+const navItems = navGroups.flatMap((g) => g.items);
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -55,28 +81,37 @@ export function Sidebar() {
             Fantasy NFL
           </span>
         </div>
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                key={item.href}
-                href={withParams(item.href)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto p-3">
+          {navGroups.map((group) => (
+            <div key={group.label} className="mb-2">
+              <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+                {group.label}
+              </div>
+              <div className="space-y-1">
+                {group.items.map((item) => {
+                  const isActive =
+                    item.href === "/"
+                      ? pathname === "/"
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={withParams(item.href)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </aside>
 

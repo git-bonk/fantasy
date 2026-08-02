@@ -3,7 +3,7 @@ import type { PlayerRow } from "../types";
 import { maskRows, maskedTeamName } from "./shared";
 
 export interface SeasonPlayerRow {
-  espn_player_id: number;
+  player_id: number | null;
   player_name: string;
   position: string;
   nfl_team: string;
@@ -30,10 +30,11 @@ export function ptsPerGame(totalPoints: number, games: number): number {
 export async function getTopPerformers(seasonId: number, weekNum: number): Promise<PlayerRow[]> {
   const rows = db
     .prepare(
-      `SELECT r.player_name, r.position, r.nfl_team, r.points, t.name tname, t.color,
-              o.alias_num AS owner_alias_num
+      `SELECT pp.id AS player_id, r.player_name, r.position, r.nfl_team, r.points,
+              t.name tname, t.color, o.alias_num AS owner_alias_num
        FROM rosters r JOIN teams t ON t.id = r.team_id JOIN weeks w ON w.id = r.week_id
        LEFT JOIN owners o ON o.id = t.owner_id
+       LEFT JOIN players pp ON pp.espn_player_id = r.espn_player_id
        WHERE w.season_id = ? AND w.week_num = ? AND r.lineup_slot != 'BN'
        ORDER BY r.points DESC LIMIT 25`
     )
@@ -58,7 +59,7 @@ export async function getSeasonPlayerTable(
   const params = position ? [seasonId, seasonId, position] : [seasonId, seasonId];
   const rows = db
     .prepare(
-      `SELECT p.espn_player_id, p.player_name, p.position, p.nfl_team,
+      `SELECT pp.id AS player_id, p.player_name, p.position, p.nfl_team,
               p.games, p.total_points, p.starts, p.benches,
               t.id AS team_id, t.name AS tname, t.color, o.alias_num AS owner_alias_num
        FROM (
@@ -74,10 +75,11 @@ export async function getSeasonPlayerTable(
          FROM rosters r JOIN weeks w ON w.id = r.week_id
          WHERE w.season_id = ? ${positionFilter}
          GROUP BY r.espn_player_id, r.player_name, r.position, r.nfl_team
-       ) p
-       LEFT JOIN teams t ON t.id = p.team_id
-       LEFT JOIN owners o ON o.id = t.owner_id
-       ORDER BY p.total_points DESC`
+        ) p
+        LEFT JOIN teams t ON t.id = p.team_id
+        LEFT JOIN owners o ON o.id = t.owner_id
+        LEFT JOIN players pp ON pp.espn_player_id = p.espn_player_id
+        ORDER BY p.total_points DESC`
     )
     .all(...params) as SeasonPlayerRow[];
 

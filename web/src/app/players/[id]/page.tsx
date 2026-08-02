@@ -24,14 +24,14 @@ interface PlayerCareerPageProps {
 
 export default async function PlayerCareerPage({ params }: PlayerCareerPageProps) {
   const { id } = await params;
-  const espnPlayerId = Number(id);
-  if (!Number.isInteger(espnPlayerId) || espnPlayerId <= 0) notFound();
+  const playerId = Number(id);
+  if (!Number.isInteger(playerId) || playerId <= 0) notFound();
 
-  const career = await getPlayerCareer(espnPlayerId);
+  const career = await getPlayerCareer(playerId);
   if (!career) notFound();
 
-  const tenure = await getPlayerTenure(espnPlayerId);
-  const ownership = await getPlayerOwnership(espnPlayerId);
+  const tenure = await getPlayerTenure(playerId);
+  const ownership = await getPlayerOwnership(playerId);
   const summary = summarizeCareer(tenure);
   const legend = isFranchiseLegend(ownership.maxSeasonsSameOwner);
   const seasonPoints = pointsBySeason(tenure);
@@ -93,7 +93,7 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
               <CareerPointsChart
                 data={seasonPoints}
                 color="#10b981"
-                id={`player-${espnPlayerId}`}
+                    id={`player-${playerId}`}
               />
             ) : (
               <p className="py-8 text-center text-sm text-zinc-400">

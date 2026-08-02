@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PlayerLink } from "@/components/links/PlayerLink";
 import { fmtPts } from "@/lib/format";
 import { PositionBadge } from "./PositionBadge";
 import type { PositionLeaders as PositionLeadersType } from "@/lib/types";
@@ -26,7 +27,7 @@ export function PositionLeaders({ data }: PositionLeadersProps) {
           <div className="space-y-2">
             {group.leaders.map((leader, i) => (
               <div
-                key={leader.espn_player_id}
+                key={leader.player_id ?? `${leader.player_name}-${i}`}
                 className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2.5"
               >
                 <span className="w-5 text-center font-mono text-xs font-bold tabular-nums text-muted-foreground">
@@ -34,7 +35,12 @@ export function PositionLeaders({ data }: PositionLeadersProps) {
                 </span>
                 <PositionBadge position={leader.position} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{leader.player_name}</p>
+                  <PlayerLink
+                    playerId={leader.player_id}
+                    className="block truncate text-sm font-medium transition-colors hover:text-emerald-400"
+                  >
+                    {leader.player_name}
+                  </PlayerLink>
                   <p className="text-xs text-muted-foreground">{leader.games} games</p>
                 </div>
                 <span className="font-mono text-base font-bold tabular-nums">

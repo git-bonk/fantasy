@@ -318,6 +318,7 @@ export interface FinalStandingRow {
 }
 
 export interface PlayerRow {
+  player_id: number | null;
   player_name: string;
   position: string;
   nfl_team: string;
@@ -328,7 +329,7 @@ export interface PlayerRow {
 }
 
 export interface SeasonLeaderRow {
-  espn_player_id: number;
+  player_id: number | null;
   player_name: string;
   position: string;
   total_points: number;
@@ -364,7 +365,7 @@ export interface WeekRosterRow extends TeamRosterRow {
 }
 
 export interface TeamPlayerHistoryRow {
-  espn_player_id: number;
+  player_id: number | null;
   player_name: string;
   position: string;
   nfl_team: string;

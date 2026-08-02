@@ -49,7 +49,7 @@ const CAREER_SQL = `
   FROM players p
   LEFT JOIN seasons fs ON fs.id = p.first_season_id
   LEFT JOIN seasons ls ON ls.id = p.last_season_id
-  WHERE p.espn_player_id = @playerId
+  WHERE p.id = @playerId
 `;
 
 const TENURE_SQL = `
@@ -69,7 +69,7 @@ const TENURE_SQL = `
   JOIN seasons s ON s.id = w.season_id
   JOIN teams t ON t.id = r.team_id
   LEFT JOIN owners o ON o.id = t.owner_id
-  WHERE r.espn_player_id = @playerId
+  WHERE r.espn_player_id = (SELECT espn_player_id FROM players WHERE id = @playerId)
   GROUP BY s.year, t.id
   ORDER BY s.year ASC, t.id ASC
 `;
@@ -78,10 +78,10 @@ const TENURE_SQL = `
  * Public player identity (NFL players are public — no masking). Season ids are
  * not year-ordered, so first/last seasons are resolved to years via the seasons table.
  */
-export async function getPlayerCareer(espnPlayerId: number): Promise<PlayerCareer | null> {
+export async function getPlayerCareer(playerId: number): Promise<PlayerCareer | null> {
   const row = db
     .prepare(CAREER_SQL)
-    .get({ playerId: espnPlayerId }) as
+    .get({ playerId }) as
     | { full_name: string; position: string; nfl_team: string; first_year: number | null; last_year: number | null }
     | undefined;
 
@@ -101,10 +101,10 @@ export async function getPlayerCareer(espnPlayerId: number): Promise<PlayerCaree
  * like every other query; ESPN owner ids are never selected — legend/owner aggregates
  * come from getPlayerOwnership, which keeps them server-side.
  */
-export async function getPlayerTenure(espnPlayerId: number): Promise<PlayerTenureRow[]> {
+export async function getPlayerTenure(playerId: number): Promise<PlayerTenureRow[]> {
   const rows = db
     .prepare(TENURE_SQL)
-    .all({ playerId: espnPlayerId }) as Omit<PlayerTenureRow, "key">[];
+    .all({ playerId }) as Omit<PlayerTenureRow, "key">[];
 
   const keyed: PlayerTenureRow[] = rows.map((r) => ({ ...r, key: `${r.year}-${r.team_id}` }));
 
@@ -120,7 +120,7 @@ export async function getPlayerTenure(espnPlayerId: number): Promise<PlayerTenur
  * distinct owners across the career, and the most seasons spent under a single
  * owner (the franchise-legend input).
  */
-export async function getPlayerOwnership(espnPlayerId: number): Promise<PlayerOwnership> {
+export async function getPlayerOwnership(playerId: number): Promise<PlayerOwnership> {
   const row = db
     .prepare(
       `SELECT
@@ -128,17 +128,19 @@ export async function getPlayerOwnership(espnPlayerId: number): Promise<PlayerOw
           FROM rosters r
           JOIN weeks w ON w.id = r.week_id
           JOIN teams t ON t.id = r.team_id
-          WHERE r.espn_player_id = @playerId AND t.owner_id IS NOT NULL) AS distinct_owners,
-         (SELECT MAX(per_owner.seasons)
-          FROM (SELECT COUNT(DISTINCT s.year) AS seasons
-                FROM rosters r
-                JOIN weeks w ON w.id = r.week_id
-                JOIN seasons s ON s.id = w.season_id
-                JOIN teams t ON t.id = r.team_id
-                WHERE r.espn_player_id = @playerId AND t.owner_id IS NOT NULL
-                GROUP BY t.owner_id) AS per_owner) AS max_seasons_same_owner`
+          WHERE r.espn_player_id = (SELECT espn_player_id FROM players WHERE id = @playerId)
+            AND t.owner_id IS NOT NULL) AS distinct_owners,
+          (SELECT MAX(per_owner.seasons)
+           FROM (SELECT COUNT(DISTINCT s.year) AS seasons
+                 FROM rosters r
+                 JOIN weeks w ON w.id = r.week_id
+                 JOIN seasons s ON s.id = w.season_id
+                 JOIN teams t ON t.id = r.team_id
+                 WHERE r.espn_player_id = (SELECT espn_player_id FROM players WHERE id = @playerId)
+                   AND t.owner_id IS NOT NULL
+                 GROUP BY t.owner_id) AS per_owner) AS max_seasons_same_owner`
     )
-    .get({ playerId: espnPlayerId }) as {
+    .get({ playerId }) as {
     distinct_owners: number | null;
     max_seasons_same_owner: number | null;
   };

@@ -1,4 +1,5 @@
 import { ArrowRightLeft } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import { fmtPts } from "@/lib/format";
@@ -10,11 +11,7 @@ interface TradeGradesProps {
 
 export function TradeGrades({ trades }: TradeGradesProps) {
   if (trades.length === 0) {
-    return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-        No trades recorded this season.
-      </div>
-    );
+    return <EmptyState message="No trades recorded this season." />;
   }
 
   return (

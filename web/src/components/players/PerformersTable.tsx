@@ -8,6 +8,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PlayerLink } from "@/components/links/PlayerLink";
 import { PositionBadge } from "./PositionBadge";
 import type { PlayerRow } from "@/lib/types";
 
@@ -44,7 +45,12 @@ export function PerformersTable({ players }: PerformersTableProps) {
                 <div className="flex items-center gap-2.5">
                   <PositionBadge position={p.position} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{p.player_name}</p>
+                    <PlayerLink
+                      playerId={p.player_id}
+                      className="block truncate text-sm font-medium transition-colors hover:text-emerald-400"
+                    >
+                      {p.player_name}
+                    </PlayerLink>
                     <p className="text-xs text-muted-foreground">{p.nfl_team}</p>
                   </div>
                 </div>

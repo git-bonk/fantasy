@@ -6,7 +6,7 @@ export interface DraftPickRow {
   round_num: number;
   round_pick: number;
   overall_pick: number | null;
-  espn_player_id: number | null;
+  player_id: number | null;
   player_name: string;
   position: string;
   nfl_team: string | null;
@@ -66,13 +66,15 @@ export interface TeamBestWorst {
 export async function getDraft(seasonId: number): Promise<DraftPickRow[]> {
   const rows = db
     .prepare(
-      `SELECT d.id, d.round_num, d.round_pick, d.overall_pick, d.espn_player_id,
+      `SELECT d.id, d.round_num, d.round_pick, d.overall_pick,
+              pp.id AS player_id,
               d.player_name, d.position, d.nfl_team, d.bid_amount, d.keeper_status,
               t.id AS team_id, t.name AS tname, t.abbrev AS abbrev,
               t.color AS color, o.alias_num AS owner_alias_num
        FROM draft_picks d
        JOIN teams t ON t.id = d.team_id
        LEFT JOIN owners o ON o.id = t.owner_id
+       LEFT JOIN players pp ON pp.espn_player_id = d.espn_player_id
        WHERE d.season_id = @seasonId
        ORDER BY d.round_num, d.round_pick`
     )

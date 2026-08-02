@@ -8,6 +8,20 @@ interface ShameCornerProps {
   items: ShameItem[];
 }
 
+function ShameHeadline({ item }: { item: ShameItem }) {
+  if (item.teamId != null && item.headline.startsWith(item.teamName)) {
+    return (
+      <>
+        <TeamLink teamId={item.teamId} className="transition-colors hover:text-emerald-400">
+          {item.teamName}
+        </TeamLink>
+        {item.headline.slice(item.teamName.length)}
+      </>
+    );
+  }
+  return <>{item.headline}</>;
+}
+
 function ShameBadge({ item }: { item: ShameItem }) {
   const badge = (
     <span
@@ -60,7 +74,9 @@ export function ShameCorner({ items }: ShameCornerProps) {
                   {item.suffix}
                 </span>
               </div>
-              <p className="mt-2 text-sm font-semibold text-zinc-200">{item.headline}</p>
+              <p className="mt-2 text-sm font-semibold text-zinc-200">
+                <ShameHeadline item={item} />
+              </p>
               <p className="pt-2 text-xs text-zinc-500">{item.detail}</p>
             </div>
           </StaggerItem>

@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { PlayerLink } from "@/components/links/PlayerLink";
 import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import type { TransactionFeedRow } from "@/lib/queries";
 
 interface TransactionFeedProps {
   transactions: TransactionFeedRow[];
+  year: number;
 }
 
 interface WeekGroup {
@@ -48,7 +51,7 @@ function groupByWeek(transactions: TransactionFeedRow[]): WeekGroup[] {
   return groups;
 }
 
-export function TransactionFeed({ transactions }: TransactionFeedProps) {
+export function TransactionFeed({ transactions, year }: TransactionFeedProps) {
   const [selected, setSelected] = useState(0);
   const reduce = useReducedMotion();
   const groups = groupByWeek(transactions);
@@ -70,7 +73,12 @@ export function TransactionFeed({ transactions }: TransactionFeedProps) {
             <ChevronLeft className="h-4 w-4" />
           </button>
           <div className="min-w-28 text-center">
-            <div className="font-display text-sm font-semibold tracking-tight">{group.label}</div>
+            <Link
+              href={`/scores?year=${year}&week=${group.weekNum}`}
+              className="font-display text-sm font-semibold tracking-tight transition-colors hover:text-emerald-400"
+            >
+              {group.label}
+            </Link>
             <div className="text-[11px] text-muted-foreground">
               {group.items.length} move{group.items.length === 1 ? "" : "s"}
             </div>
@@ -149,9 +157,12 @@ function TransactionItem({ tx }: { tx: TransactionFeedRow }) {
           >
             {TYPE_LABELS[tx.type] ?? tx.type}
           </span>
-          <span className="truncate text-sm font-medium">
+          <PlayerLink
+            playerId={tx.player_id}
+            className="truncate text-sm font-medium transition-colors hover:text-emerald-400"
+          >
             {tx.player_name ?? "Unknown player"}
-          </span>
+          </PlayerLink>
         </div>
         {tx.tname && (
           <div className="mt-0.5 flex items-center gap-1.5">

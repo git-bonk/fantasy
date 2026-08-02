@@ -8,6 +8,9 @@ import {
   Zap,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/SectionHeader";
 import { AliasTag } from "@/components/cards/AliasTag";
 import { TeamLink } from "@/components/links/TeamLink";
 import { StatCard } from "@/components/cards/StatCard";
@@ -37,9 +40,18 @@ export default async function OverviewPage({
   searchParams: Promise<{ year?: string; week?: string }>;
 }) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum, weeks, maxWeek } = ctx;
+  const { seasonId, weekNum, weeks, maxWeek, year } = ctx;
   const seasons = getSeasons();
   const season = seasons.find((s) => s.id === seasonId);
+  const prevSeason = seasons.find((s) => s.year < year);
+  const prevSeasonAction = prevSeason ? (
+    <Link
+      href={`/?year=${prevSeason.year}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      View {prevSeason.year} instead
+    </Link>
+  ) : undefined;
   const selectedWeek = weeks.find((w) => w.week_num === weekNum);
   const weekLabel = selectedWeek?.label ?? `Week ${weekNum}`;
   const isPlayoffWeek = selectedWeek?.is_playoff === 1;
@@ -87,24 +99,18 @@ export default async function OverviewPage({
 
   return (
     <div className="space-y-6">
-      <Reveal>
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <p className="text-[11px] font-semibold tracking-widest text-emerald-500 uppercase">
-              Fantasy NFL · {season?.year ?? ""}
-            </p>
-            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
-              {weekLabel} Scoreboard
-            </h1>
-          </div>
+      <PageHeader
+        title={`${weekLabel} Scoreboard`}
+        subtitle={`Fantasy NFL · ${season?.year ?? ""}`}
+        action={
           <Link
             href="/scores"
             className="inline-flex items-center gap-1 text-sm font-medium text-zinc-400 transition-colors hover:text-emerald-400"
           >
             Full scoreboard <ArrowRight className="h-4 w-4" />
           </Link>
-        </div>
-      </Reveal>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Reveal className="xl:col-span-2">
@@ -212,11 +218,7 @@ export default async function OverviewPage({
               </CardContent>
             </Card>
           ) : (
-            <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
-              <CardContent className="p-8 text-center text-sm text-zinc-500">
-                No matchups recorded yet.
-              </CardContent>
-            </Card>
+            <EmptyState message="No matchups recorded yet." action={prevSeasonAction} />
           )}
         </Reveal>
 
@@ -337,28 +339,34 @@ export default async function OverviewPage({
       <Reveal delay={0.05}>
         {isFinalWeek ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-sm font-semibold">Final Standings</h2>
-              <Link
-                href="/rankings"
-                className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-emerald-400"
-              >
-                Full rankings <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
+            <SectionHeader
+              title="Final Standings"
+              controls={
+                <Link
+                  href="/rankings"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-emerald-400"
+                >
+                  Full rankings <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              }
+            />
             <FinalStandingsTable rows={finalStandings} revealed={revealed} />
           </div>
         ) : (
         <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
           <CardContent className="p-0">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-3.5">
-              <h2 className="font-display text-sm font-semibold">Standings Snapshot</h2>
-              <Link
-                href="/rankings"
-                className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-emerald-400"
-              >
-                Full rankings <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+            <div className="border-b border-zinc-800 px-5 py-3.5">
+              <SectionHeader
+                title="Standings Snapshot"
+                controls={
+                  <Link
+                    href="/rankings"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-emerald-400"
+                  >
+                    Full rankings <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                }
+              />
             </div>
             <div className="divide-y divide-zinc-800/70">
               {rankings.slice(0, 5).map((t, i) => (

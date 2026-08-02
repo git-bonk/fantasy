@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { UserRound } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { PickCard } from "@/components/predictions/PickCard";
@@ -10,6 +11,7 @@ import {
   getMyPicks,
   getPredictionLeaderboard,
   getScheduledWeeks,
+  getSeasons,
   getWeekPickables,
 } from "@/lib/queries";
 import { resolveSeason } from "@/lib/resolve-season";
@@ -22,6 +24,16 @@ interface PredictionsPageProps {
 export default async function PredictionsPage({ searchParams }: PredictionsPageProps) {
   const ctx = await resolveSeason(searchParams);
   const owner = await getCurrentOwner();
+
+  const prevSeason = getSeasons().find((s) => s.year < ctx.year);
+  const prevSeasonAction = prevSeason ? (
+    <Link
+      href={`/predictions?year=${prevSeason.year}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      View {prevSeason.year} instead
+    </Link>
+  ) : undefined;
 
   const scheduledWeeks = getScheduledWeeks(ctx.seasonId);
   const [initialPickables, leaderboard] = await Promise.all([
@@ -86,9 +98,10 @@ export default async function PredictionsPage({ searchParams }: PredictionsPageP
 
       {pickables.length === 0 ? (
         <Reveal>
-          <p className="py-16 text-center text-sm text-zinc-500">
-            No games to pick for this week.
-          </p>
+          <EmptyState
+            message="No games to pick for this week."
+            action={prevSeasonAction}
+          />
         </Reveal>
       ) : (
         <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>

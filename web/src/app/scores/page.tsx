@@ -1,8 +1,11 @@
+import Link from "next/link";
+import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/PageHeader";
 import { MatchupCard } from "@/components/cards/MatchupCard";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import {
   getMatchups,
+  getSeasons,
   getWeekRosters,
 } from "@/lib/queries";
 import { getRevealState } from "@/lib/reveal";
@@ -15,11 +18,21 @@ interface ScoresPageProps {
 
 export default async function ScoresPage({ searchParams }: ScoresPageProps) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum, weeks } = ctx;
+  const { seasonId, weekNum, weeks, year } = ctx;
 
   const matchups = await getMatchups(seasonId, weekNum);
   const revealed = await getRevealState();
   const weekLabel = weeks.find((w) => w.week_num === weekNum)?.label ?? `Week ${weekNum}`;
+
+  const prevSeason = getSeasons().find((s) => s.year < year);
+  const prevSeasonAction = prevSeason ? (
+    <Link
+      href={`/scores?year=${prevSeason.year}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400"
+    >
+      View {prevSeason.year} instead
+    </Link>
+  ) : undefined;
 
   const rostersByTeam = new Map<number, WeekRosterRow[]>();
   for (const row of getWeekRosters(seasonId, weekNum)) {
@@ -37,9 +50,10 @@ export default async function ScoresPage({ searchParams }: ScoresPageProps) {
 
       {matchups.length === 0 ? (
         <Reveal>
-          <p className="py-16 text-center text-sm text-zinc-500">
-            No matchups recorded for this week.
-          </p>
+          <EmptyState
+            message="No matchups recorded for this week."
+            action={prevSeasonAction}
+          />
         </Reveal>
       ) : (
         <Stagger className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" stagger={0.05}>
