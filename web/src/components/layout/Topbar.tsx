@@ -1,17 +1,21 @@
 import { cookies } from "next/headers";
+import { getCurrentOwner } from "@/lib/auth";
+import { WEEK_COOKIE, YEAR_COOKIE } from "@/lib/config";
 import { getSeasons, getMaxWeek, getWeeks, getSeasonIdByYear } from "@/lib/queries";
 import { getRevealStatus } from "@/lib/reveal";
 import { TopbarControls } from "./TopbarControls";
 import { RevealToggle } from "./RevealToggle";
+import { OwnerAuth } from "./OwnerAuth";
 import type { Week } from "@/lib/types";
 
 export async function Topbar() {
   const cookieStore = await cookies();
   const seasons = getSeasons();
   const reveal = await getRevealStatus();
+  const owner = await getCurrentOwner();
 
-  const yearCookie = cookieStore.get("fantasy_year")?.value;
-  const weekCookie = cookieStore.get("fantasy_week")?.value;
+  const yearCookie = cookieStore.get(YEAR_COOKIE)?.value;
+  const weekCookie = cookieStore.get(WEEK_COOKIE)?.value;
 
   const serverYear = yearCookie ? Number(yearCookie) : seasons[0]?.year ?? 2025;
   const seasonId = getSeasonIdByYear(serverYear);
@@ -36,6 +40,7 @@ export async function Topbar() {
         </h1>
       </div>
       <div className="flex items-center gap-2">
+        <OwnerAuth owner={owner ? { aliasNum: owner.aliasNum } : null} />
         <RevealToggle unlocked={reveal.unlocked} revealed={reveal.revealed} />
         <TopbarControls
           seasons={seasons}

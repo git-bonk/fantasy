@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { fmtRecord, fmtPts } from "@/lib/format";
+import { TeamLink } from "@/components/links/TeamLink";
 import {
   Table,
   TableBody,
@@ -57,8 +57,8 @@ export function StandingsTable({ standings, playoffTeams, streaks }: StandingsTa
                   )}
                 </TableCell>
                 <TableCell>
-                  <Link
-                    href={`/teams/${team.id}`}
+                  <TeamLink
+                    teamId={team.id}
                     className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
                   >
                     <span
@@ -69,7 +69,7 @@ export function StandingsTable({ standings, playoffTeams, streaks }: StandingsTa
                     </span>
                     <span className="truncate text-sm font-medium">{team.name}</span>
                     {streak && <StreakBadge streak={streak.streak} type={streak.type} />}
-                  </Link>
+                  </TeamLink>
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
                   {fmtRecord(team.wins, team.losses, team.ties)}

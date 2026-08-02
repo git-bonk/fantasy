@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import sqlite3
+from pathlib import Path
 
 from .config import load_config, resolve_db_path
 
@@ -23,11 +25,14 @@ def main(argv: list[str] | None = None) -> None:
         "ingest", help="Ingest real league data from ESPN (incremental by default)"
     )
     p_ingest.add_argument(
-        "--full", action="store_true",
+        "--full",
+        action="store_true",
         help="Force a full re-scrape of all weeks instead of incremental",
     )
     p_ingest.add_argument(
-        "--year", type=int, default=None,
+        "--year",
+        type=int,
+        default=None,
         help="Only ingest this season year (default: all configured seasons)",
     )
     sub.add_parser("compute", help="Recompute stats from existing raw data")
@@ -41,13 +46,26 @@ def main(argv: list[str] | None = None) -> None:
         help="One-time targeted backfill: refresh teams + playoff weeks only (cheap)",
     )
     p_backfill.add_argument(
-        "--year", type=int, default=None,
+        "--year",
+        type=int,
+        default=None,
         help="Only backfill this season year (default: all configured seasons)",
     )
     p_backfill.add_argument(
-        "--delay", type=float, default=0.0,
+        "--delay",
+        type=float,
+        default=0.0,
         help="Seconds to pause between week fetches (go easy on the ESPN API)",
     )
+
+    p_tokens = sub.add_parser("tokens", help="Manage per-owner prediction-game tokens")
+    tokens_sub = p_tokens.add_subparsers(dest="tokens_command", required=True)
+    p_tokens_gen = tokens_sub.add_parser("generate", help="Generate a token for an owner")
+    p_tokens_gen.add_argument("--owner", required=True, help="Owner id or alias_num")
+    p_tokens_gen.add_argument("--label", default=None, help="Optional token label")
+    tokens_sub.add_parser("list", help="List tokens (never shows hashes)")
+    p_tokens_revoke = tokens_sub.add_parser("revoke", help="Soft-revoke a token")
+    p_tokens_revoke.add_argument("--id", type=int, required=True, dest="token_id")
 
     args = parser.parse_args(argv)
     db_path = resolve_db_path(args.db or os.getenv("DB_PATH"))
@@ -55,7 +73,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "sample":
         from .ingest import ingest_sample
 
-        ingest_sample(db_path, year=args.year, seed=args.seed, sims=args.sims)
+        ingest_sample(db_path, year=args.year, seed=args.seed, sims=args.sims, verbose=args.verbose)
     elif args.command == "ingest":
         from dataclasses import replace
 
@@ -64,8 +82,9 @@ def main(argv: list[str] | None = None) -> None:
         config = load_config(require_creds=True)
         if args.db:
             config = replace(config, db_path=db_path)
-        ingest_espn(config, sims=args.sims, verbose=args.verbose,
-                    full=args.full, only_year=args.year)
+        ingest_espn(
+            config, sims=args.sims, verbose=args.verbose, full=args.full, only_year=args.year
+        )
     elif args.command == "compute":
         from .ingest import recompute
 
@@ -91,8 +110,57 @@ def main(argv: list[str] | None = None) -> None:
         config = load_config(require_creds=True)
         if args.db:
             config = replace(config, db_path=db_path)
-        backfill(config, sims=args.sims, verbose=args.verbose,
-                 only_year=args.year, delay=args.delay)
+        backfill(
+            config, sims=args.sims, verbose=args.verbose, only_year=args.year, delay=args.delay
+        )
+    elif args.command == "tokens":
+        _run_tokens(db_path, args)
+
+
+def _resolve_owner(conn: sqlite3.Connection, ref: str) -> str:
+    """Resolve an owner by owners.id or owners.alias_num (accepts either)."""
+    row = conn.execute("SELECT id FROM owners WHERE id = ?", (ref,)).fetchone()
+    if row:
+        return row["id"]
+    if ref.isdigit():
+        row = conn.execute("SELECT id FROM owners WHERE alias_num = ?", (int(ref),)).fetchone()
+        if row:
+            return row["id"]
+    raise SystemExit(f"No owner matching {ref!r} (by id or alias_num)")
+
+
+def _run_tokens(db_path: Path, args: argparse.Namespace) -> None:
+    from . import tokens
+    from .db import connect, init_db
+
+    conn = connect(db_path)
+    try:
+        init_db(conn)
+        if args.tokens_command == "generate":
+            owner_id = _resolve_owner(conn, args.owner)
+            plaintext, _ = tokens.generate_token(conn, owner_id, args.label)
+            print(f"Owner: {owner_id}")
+            print(f"Token: {plaintext}")
+            print("WARNING: this token is shown only once and cannot be recovered.")
+        elif args.tokens_command == "list":
+            rows = conn.execute(
+                "SELECT t.id, t.owner_id, o.alias_num, t.label, t.created_at, t.revoked_at "
+                "FROM owner_tokens t LEFT JOIN owners o ON o.id = t.owner_id ORDER BY t.id"
+            ).fetchall()
+            if not rows:
+                print("No tokens.")
+            for r in rows:
+                alias = f" (alias {r['alias_num']})" if r["alias_num"] is not None else ""
+                revoked = r["revoked_at"] or "-"
+                print(
+                    f"#{r['id']} owner={r['owner_id']}{alias} "
+                    f"label={r['label'] or '-'} created={r['created_at']} revoked={revoked}"
+                )
+        elif args.tokens_command == "revoke":
+            tokens.revoke_token(conn, args.token_id)
+            print(f"Token #{args.token_id} revoked.")
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

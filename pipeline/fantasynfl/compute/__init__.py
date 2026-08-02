@@ -6,48 +6,24 @@ import sqlite3
 
 from .awards import compute_awards
 from .elo import INITIAL, compute_elo
+from .loaders import load_games, load_team_ids
 from .luck import compute_luck
 from .owner_elo import compute_owner_elo_all
+from .players import compute_players
 from .playoffs import compute_standings, playoff_odds, rank_standings
 from .predict import predict_games
 from .records import compute_records
 from .sos import compute_sos
-from .types import GameResult
+from .transactions import store_derived_transactions
 
 __all__ = [
     "compute_all",
     "compute_owner_elo_all",
+    "compute_players",
     "load_games",
     "load_team_ids",
     "predict_games",
 ]
-
-
-def load_team_ids(conn: sqlite3.Connection, season_id: int) -> list[int]:
-    rows = conn.execute("SELECT id FROM teams WHERE season_id = ?", (season_id,)).fetchall()
-    return [r["id"] for r in rows]
-
-
-def load_games(conn: sqlite3.Connection, season_id: int) -> list[GameResult]:
-    sql = """
-    SELECT w.week_num AS week_num, m.home_team_id AS home_id, m.away_team_id AS away_id,
-           m.home_score AS home_score, m.away_score AS away_score, m.is_playoff AS is_playoff
-    FROM matchups m
-    JOIN weeks w ON w.id = m.week_id
-    WHERE w.season_id = ?
-    ORDER BY w.week_num
-    """
-    return [
-        GameResult(
-            r["week_num"],
-            r["home_id"],
-            r["away_id"],
-            r["home_score"],
-            r["away_score"],
-            bool(r["is_playoff"]),
-        )
-        for r in conn.execute(sql, (season_id,)).fetchall()
-    ]
 
 
 def _team_names(conn: sqlite3.Connection, season_id: int) -> dict[int, str]:
@@ -182,5 +158,8 @@ def compute_all(
             for r in records
         ],
     )
+
+    # --- Derived transactions (week-over-week roster diffs) ---
+    store_derived_transactions(conn, season_id)
 
     conn.commit()

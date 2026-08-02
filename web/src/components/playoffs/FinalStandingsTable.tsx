@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Table,
   TableBody,
@@ -8,6 +7,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AliasTag } from "@/components/cards/AliasTag";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import { fmtPts, fmtRecord } from "@/lib/format";
 import type { FinalStandingRow } from "@/lib/types";
@@ -49,8 +49,8 @@ export function FinalStandingsTable({ rows, revealed }: FinalStandingsTableProps
                 )}
               </TableCell>
               <TableCell>
-                <Link
-                  href={`/teams/${row.id}`}
+                <TeamLink
+                  teamId={row.id}
                   className="flex items-center gap-2.5 transition-opacity hover:opacity-80"
                 >
                   <span
@@ -64,7 +64,7 @@ export function FinalStandingsTable({ rows, revealed }: FinalStandingsTableProps
                   ) : (
                     <AliasTag label={row.name} />
                   )}
-                </Link>
+                </TeamLink>
               </TableCell>
               <TableCell className="text-right font-mono text-sm font-semibold tabular-nums">
                 {row.wins != null ? fmtRecord(row.wins, row.losses ?? 0, row.ties ?? 0) : "—"}

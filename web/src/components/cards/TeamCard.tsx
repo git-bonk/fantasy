@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AliasTag } from "@/components/cards/AliasTag";
 import { StreakBadge } from "@/components/cards/StreakBadge";
+import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import { fmtPct, fmtPts, fmtRecord } from "@/lib/format";
 import type { TeamStandingRow, TeamStreak } from "@/lib/types";
@@ -18,7 +18,7 @@ export function TeamCard({ team, streak, revealed, className }: TeamCardProps) {
   const inPlayoffs = team.playoff_seed !== null;
 
   return (
-    <Link href={`/teams/${team.id}`} className="block">
+    <TeamLink teamId={team.id} className="block">
       <Card
         className={cn(
           "border border-zinc-800 bg-zinc-900/60 py-0 ring-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-700",
@@ -100,6 +100,6 @@ export function TeamCard({ team, streak, revealed, className }: TeamCardProps) {
           </div>
         </CardContent>
       </Card>
-    </Link>
+    </TeamLink>
   );
 }

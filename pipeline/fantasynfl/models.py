@@ -69,6 +69,13 @@ class WeekRoster:
 
 
 @dataclass(frozen=True)
+class ScheduledMatchup:
+    week_num: int
+    home_espn_id: int
+    away_espn_id: int
+
+
+@dataclass(frozen=True)
 class Transaction:
     team_id: int | None
     espn_player_id: int | None

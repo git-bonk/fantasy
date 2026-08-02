@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ChevronRight, Crown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/PageHeader";
 import { AliasTag } from "@/components/cards/AliasTag";
+import { OwnerLink } from "@/components/links/OwnerLink";
 import { AnimatedRow, Reveal } from "@/components/motion/Reveal";
 import { getOwnerStandings } from "@/lib/queries";
 import { getRevealState } from "@/lib/reveal";
@@ -88,32 +88,24 @@ export default async function AllTimePage() {
                           </span>
                         </TableCell>
                         <TableCell className="py-3">
-                          {revealed ? (
-                            <Link
-                              href={`/all-time/${encodeURIComponent(o.owner_id)}`}
-                              className="group flex items-center gap-2.5"
+                          <OwnerLink
+                            aliasNum={o.owner_alias_num}
+                            className="group flex items-center gap-2.5"
+                          >
+                            <span
+                              className="flex h-8 w-8 items-center justify-center rounded-lg font-display text-[10px] font-bold"
+                              style={{ backgroundColor: `${color}1f`, color }}
                             >
-                              <span
-                                className="flex h-8 w-8 items-center justify-center rounded-lg font-display text-[10px] font-bold"
-                                style={{ backgroundColor: `${color}1f`, color }}
-                              >
-                                {initials(o.display_name)}
-                              </span>
+                              {initials(o.display_name)}
+                            </span>
+                            {revealed ? (
                               <span className="font-semibold transition-colors group-hover:text-emerald-400">
                                 {o.display_name}
                               </span>
-                            </Link>
-                          ) : (
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className="flex h-8 w-8 items-center justify-center rounded-lg font-display text-[10px] font-bold"
-                                style={{ backgroundColor: `${color}1f`, color }}
-                              >
-                                {initials(o.display_name)}
-                              </span>
+                            ) : (
                               <AliasTag label={o.display_name} />
-                            </div>
-                          )}
+                            )}
+                          </OwnerLink>
                         </TableCell>
                         <TableCell className="py-3 text-right font-mono text-base font-bold tabular-nums">
                           {Math.round(o.rating)}

@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { WEEK_COOKIE, YEAR_COOKIE } from "./config";
 
 interface SeasonContextValue {
   year: number | null;
@@ -48,8 +49,8 @@ export function SeasonProvider({ children }: { children: ReactNode }) {
 
   // Sync URL params → cookies on every navigation
   useEffect(() => {
-    if (yearParam) setCookie("fantasy_year", yearParam);
-    if (weekParam) setCookie("fantasy_week", weekParam);
+    if (yearParam) setCookie(YEAR_COOKIE, yearParam);
+    if (weekParam) setCookie(WEEK_COOKIE, weekParam);
   }, [yearParam, weekParam]);
 
   const withParams = useCallback(
@@ -65,22 +66,20 @@ export function SeasonProvider({ children }: { children: ReactNode }) {
 
   const setYear = useCallback(
     async (newYear: number, maxWeek: number) => {
-      setCookie("fantasy_year", String(newYear));
-      setCookie("fantasy_week", String(maxWeek));
+      setCookie(YEAR_COOKIE, String(newYear));
+      setCookie(WEEK_COOKIE, String(maxWeek));
       await router.replace(`${pathname}?year=${newYear}&week=${maxWeek}`, { scroll: false });
-      router.refresh();
     },
     [pathname, router]
   );
 
   const setWeek = useCallback(
     async (newWeek: number) => {
-      setCookie("fantasy_week", String(newWeek));
+      setCookie(WEEK_COOKIE, String(newWeek));
       const params = new URLSearchParams(window.location.search);
       params.set("week", String(newWeek));
       if (yearParam) params.set("year", yearParam);
       await router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-      router.refresh();
     },
     [pathname, router, yearParam]
   );

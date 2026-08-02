@@ -8,8 +8,9 @@ A team's matchup score always equals the sum of its starter roster points.
 from __future__ import annotations
 
 import random
+import sqlite3
 from dataclasses import replace
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from .models import (
     Matchup,
@@ -268,6 +269,8 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
     rr = _round_robin(team_ids)  # 11 unique rounds
     schedule = rr + rr[:3]  # 14 weeks (weeks 12-14 are rematches)
     for week_num, pairs in enumerate(schedule, start=1):
+        if week_num > 1:
+            _churn_rosters(rng, rosters_by_team, team_ids)
         s, e = _week_dates(season_start, week_num)
         weeks.append(WeekInfo(week_num, f"Week {week_num}", s, e, False))
         for home, away in pairs:
@@ -351,7 +354,8 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
 
     teams = [
         replace(
-            t, standing=standing_map[t.espn_team_id],
+            t,
+            standing=standing_map[t.espn_team_id],
             final_standing=final_standing_map[t.espn_team_id],
         )
         for t in teams
@@ -388,6 +392,48 @@ def generate_season(year: int = 2025, league_id: str = "sample", seed: int = 42)
     )
 
 
+def _churn_rosters(
+    rng: random.Random,
+    rosters_by_team: dict[int, list[dict]],
+    team_ids: list[int],
+) -> None:
+    """Mutate team pools in place so consecutive weeks differ.
+
+    Produces realistic waiver/trade activity for the derived transaction history:
+    a same-position swap between two teams reads as a trade, removing a player as a
+    drop, and adding a fresh free agent as an add.
+    """
+    if rng.random() < 0.7:
+        a, b = rng.sample(team_ids, 2)
+        pos = rng.choice(["RB", "WR", "TE"])
+        pool_a = [p for p in rosters_by_team[a] if p["position"] == pos]
+        pool_b = [p for p in rosters_by_team[b] if p["position"] == pos]
+        if pool_a and pool_b:
+            pa, pb = rng.choice(pool_a), rng.choice(pool_b)
+            rosters_by_team[a].remove(pa)
+            rosters_by_team[b].remove(pb)
+            rosters_by_team[a].append(pb)
+            rosters_by_team[b].append(pa)
+    if rng.random() < 0.35:
+        tid = rng.choice(team_ids)
+        droppable = [p for p in rosters_by_team[tid] if p["position"] in ("RB", "WR", "TE")]
+        if len(droppable) > 3:
+            rosters_by_team[tid].remove(rng.choice(droppable))
+    if rng.random() < 0.35:
+        tid = rng.choice(team_ids)
+        pos = rng.choice(["RB", "WR", "TE"])
+        rosters_by_team[tid].append(
+            {
+                "espn_player_id": rng.randint(900000, 999999),
+                "name": f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}",
+                "position": pos,
+                "nfl_team": rng.choice(NFL_TEAMS),
+                "base": {"RB": 12, "WR": 11, "TE": 9}[pos],
+                "talent": rng.uniform(0.6, 1.45),
+            }
+        )
+
+
 def _make_transactions(
     rng: random.Random,
     team_ids: list[int],
@@ -412,3 +458,56 @@ def _make_transactions(
                 )
             )
     return txs
+
+
+def sample_token_plaintext(alias_num: int) -> str:
+    """Deterministic dev token plaintext for a synthetic owner."""
+    return f"sample-token-{alias_num:02d}"
+
+
+def store_sample_tokens(conn: sqlite3.Connection, verbose: bool = False) -> None:
+    """Insert deterministic dev tokens for every aliased owner (idempotent)."""
+    from .tokens import hash_token
+
+    created = datetime.now(UTC).isoformat()
+    owners = conn.execute(
+        "SELECT id, alias_num FROM owners WHERE alias_num IS NOT NULL ORDER BY alias_num"
+    ).fetchall()
+    for o in owners:
+        plaintext = sample_token_plaintext(o["alias_num"])
+        conn.execute(
+            "INSERT INTO owner_tokens (owner_id, token_hash, label, created_at, revoked_at) "
+            "VALUES (?, ?, ?, ?, NULL) ON CONFLICT(token_hash) DO NOTHING",
+            (o["id"], hash_token(plaintext), "sample", created),
+        )
+        if verbose:
+            print(f"sample token owner={o['id']} alias={o['alias_num']}: {plaintext}")
+    conn.commit()
+
+
+def store_sample_schedule(conn: sqlite3.Connection, season_id: int, season: SeasonData) -> None:
+    """Insert scheduled_matchups for the regular season with fallback kickoffs."""
+    from .lock import first_kickoff_utc
+
+    mapping = {
+        r["espn_team_id"]: r["id"]
+        for r in conn.execute(
+            "SELECT id, espn_team_id FROM teams WHERE season_id = ?", (season_id,)
+        ).fetchall()
+    }
+    for m in season.matchups:
+        if m.is_playoff:
+            continue
+        conn.execute(
+            "INSERT OR IGNORE INTO scheduled_matchups "
+            "(season_id, week_num, home_team_id, away_team_id, kickoff) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                season_id,
+                m.week_num,
+                mapping[m.home_team_id],
+                mapping[m.away_team_id],
+                first_kickoff_utc(m.week_num, season.year),
+            ),
+        )
+    conn.commit()

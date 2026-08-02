@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from .compute import compute_all, compute_owner_elo_all
+from .compute import compute_all, compute_owner_elo_all, compute_players
 from .config import Config
 from .db import (
     clear_season_data,
@@ -28,11 +28,13 @@ from .db import (
     init_db,
     set_season_status,
     store_owners,
+    store_scheduled_matchups,
     store_season,
     store_teams,
     store_transactions,
     store_week,
 )
+from .lock import first_kickoff_utc
 from .models import SeasonData, Team
 
 log = logging.getLogger("fantasynfl.ingest")
@@ -56,15 +58,26 @@ def _ingest_one(db_path: Path, season: SeasonData, sims: int = 2000) -> None:
         n_playoff = int(season.settings.get("playoff_teams", 6))
         compute_all(conn, season_id, n_playoff=n_playoff, sims=sims)
         compute_owner_elo_all(conn)
+        compute_players(conn)
     finally:
         conn.close()
 
 
-def ingest_sample(db_path: Path, year: int = 2025, seed: int = 42, sims: int = 2000) -> None:
-    from .sample import generate_season
+def ingest_sample(
+    db_path: Path, year: int = 2025, seed: int = 42, sims: int = 2000, verbose: bool = False
+) -> None:
+    from .sample import generate_season, store_sample_schedule, store_sample_tokens
 
     season = generate_season(year=year, league_id="sample", seed=seed)
     _ingest_one(db_path, season, sims=sims)
+    conn = connect(db_path)
+    try:
+        init_db(conn)
+        season_id = conn.execute("SELECT id FROM seasons WHERE year = ?", (year,)).fetchone()["id"]
+        store_sample_tokens(conn, verbose=verbose)
+        store_sample_schedule(conn, season_id, season)
+    finally:
+        conn.close()
     print(f"Sample season {year} ingested -> {db_path}")
 
 
@@ -83,8 +96,9 @@ def _season_is_over(teams: list[Team], current_week: int, settings: dict) -> boo
     return True
 
 
-def _finalize_if_over(conn, season_id: int, teams: list[Team], current_week: int,
-                      settings: dict) -> None:
+def _finalize_if_over(
+    conn, season_id: int, teams: list[Team], current_week: int, settings: dict
+) -> None:
     if _season_is_over(teams, current_week, settings):
         finalize_all_weeks(conn, season_id)
         set_season_status(conn, season_id, "complete")
@@ -97,8 +111,9 @@ def _compute(conn, season_id: int, settings: dict, sims: int) -> None:
     compute_all(conn, season_id, n_playoff=n_playoff, sims=sims)
 
 
-def _fetch_and_store_weeks(conn, client, season_id: int, team_row_id: dict[int, int],
-                           weeks, current_week: int, year: int) -> int:
+def _fetch_and_store_weeks(
+    conn, client, season_id: int, team_row_id: dict[int, int], weeks, current_week: int, year: int
+) -> int:
     """Fetch each week in ``weeks`` and store it. Returns the number stored."""
     stored = 0
     for week_num in sorted(weeks):
@@ -108,15 +123,36 @@ def _fetch_and_store_weeks(conn, client, season_id: int, team_row_id: dict[int, 
             continue
         week_info, matchups, rosters = result
         finalized = week_num < current_week
-        store_week(conn, season_id, team_row_id, week_info, matchups, rosters,
-                   finalized=finalized)
+        store_week(conn, season_id, team_row_id, week_info, matchups, rosters, finalized=finalized)
         stored += 1
         log.info(
             "[PROGRESS] Season %d: week %d stored (%d matchups, %d roster entries)%s",
-            year, week_num, len(matchups), sum(len(r.players) for r in rosters),
+            year,
+            week_num,
+            len(matchups),
+            sum(len(r.players) for r in rosters),
             " [finalized]" if finalized else " [live]",
         )
     return stored
+
+
+def _store_schedule(conn, client, season_id: int, year: int) -> None:
+    """Ingest full-season scheduled pairings (free once the league is initialized)."""
+    scheduled = client.fetch_schedule()
+    store_scheduled_matchups(conn, season_id, scheduled)
+    _backfill_kickoffs(conn, season_id, year, {m.week_num for m in scheduled})
+    log.info("Season %d: stored %d scheduled matchups", year, len(scheduled))
+
+
+def _backfill_kickoffs(conn, season_id: int, year: int, weeks: set[int]) -> None:
+    """Fill NULL kickoffs with the deterministic fallback rule until real dates land."""
+    for week_num in sorted(weeks):
+        conn.execute(
+            "UPDATE scheduled_matchups SET kickoff = ? "
+            "WHERE season_id = ? AND week_num = ? AND kickoff IS NULL",
+            (first_kickoff_utc(week_num, year), season_id, week_num),
+        )
+    conn.commit()
 
 
 def _ingest_season_full(conn, client, year: int, league_id: str, sims: int) -> None:
@@ -129,13 +165,15 @@ def _ingest_season_full(conn, client, year: int, league_id: str, sims: int) -> N
     store_owners(conn, owners)
     team_row_id = store_teams(conn, season_id, teams)
     log.info("Teams stored (%d teams, %d owners)", len(teams), len(owners))
+    _store_schedule(conn, client, season_id, year)
 
     current_week = client.current_week()
     if current_week < 1:
         log.warning("Season %d has no current week - it may not have started yet", year)
     else:
-        _fetch_and_store_weeks(conn, client, season_id, team_row_id,
-                               range(1, current_week + 1), current_week, year)
+        _fetch_and_store_weeks(
+            conn, client, season_id, team_row_id, range(1, current_week + 1), current_week, year
+        )
 
     log.info("Fetching transactions...")
     transactions = client.fetch_transactions(teams)
@@ -152,6 +190,7 @@ def _ingest_season_incremental(conn, client, year: int, league_id: str, sims: in
     teams, owners = client.fetch_teams()
     store_owners(conn, owners)
     team_row_id = store_teams(conn, season_id, teams)
+    _store_schedule(conn, client, season_id, year)
 
     current_week = client.current_week()
     fetch_set = set(get_unfinalized_weeks(conn, season_id))
@@ -160,12 +199,12 @@ def _ingest_season_incremental(conn, client, year: int, league_id: str, sims: in
     fetch_set = {w for w in fetch_set if 1 <= w <= max(current_week, 1)}
     log.info(
         "Season %d: INCREMENTAL (current_week=%d, refreshing %s)",
-        year, current_week,
+        year,
+        current_week,
         ", ".join(str(w) for w in sorted(fetch_set)) or "nothing",
     )
     if fetch_set:
-        _fetch_and_store_weeks(conn, client, season_id, team_row_id,
-                               fetch_set, current_week, year)
+        _fetch_and_store_weeks(conn, client, season_id, team_row_id, fetch_set, current_week, year)
 
     log.info("Fetching transactions...")
     transactions = client.fetch_transactions(teams)
@@ -174,9 +213,14 @@ def _ingest_season_incremental(conn, client, year: int, league_id: str, sims: in
     _compute(conn, season_id, settings, sims)
 
 
-def ingest_espn(config: Config, sims: int = 2000, verbose: bool = False,
-                full: bool = False, only_year: int | None = None,
-                client_factory: Callable[[int], object] | None = None) -> None:
+def ingest_espn(
+    config: Config,
+    sims: int = 2000,
+    verbose: bool = False,
+    full: bool = False,
+    only_year: int | None = None,
+    client_factory: Callable[[int], object] | None = None,
+) -> None:
     """Ingest league data from ESPN, incrementally by default.
 
     For each configured season:
@@ -224,6 +268,7 @@ def ingest_espn(config: Config, sims: int = 2000, verbose: bool = False,
 
     log.info("Computing running cross-season owner Elo...")
     compute_owner_elo_all(conn)
+    compute_players(conn)
     conn.close()
     log.info("All seasons complete. DB: %s", config.db_path)
 
@@ -240,9 +285,14 @@ def _playoff_start_week(settings: dict) -> int | None:
     return reg + 1 if isinstance(reg, int) else None
 
 
-def backfill(config: Config, sims: int = 2000, verbose: bool = False,
-             only_year: int | None = None, delay: float = 0.0,
-             client_factory: Callable[[int], object] | None = None) -> None:
+def backfill(
+    config: Config,
+    sims: int = 2000,
+    verbose: bool = False,
+    only_year: int | None = None,
+    delay: float = 0.0,
+    client_factory: Callable[[int], object] | None = None,
+) -> None:
     """One-time targeted backfill for already-ingested seasons.
 
     Refreshes teams (to capture ``final_standing``/``standing``) and re-fetches
@@ -286,29 +336,42 @@ def backfill(config: Config, sims: int = 2000, verbose: bool = False,
         start_week = _playoff_start_week(settings)
         if start_week and current_week >= start_week:
             playoff_weeks = list(range(start_week, current_week + 1))
-            log.info("Season %d: re-fetching playoff week(s) %s", year,
-                     ", ".join(str(w) for w in playoff_weeks))
+            log.info(
+                "Season %d: re-fetching playoff week(s) %s",
+                year,
+                ", ".join(str(w) for w in playoff_weeks),
+            )
             for week_num in playoff_weeks:
                 result = client.fetch_week(week_num)
                 if result is None:
                     log.info("Season %d: week %d returned no data - skipping", year, week_num)
                     continue
                 week_info, matchups, rosters = result
-                store_week(conn, season_id, team_row_id, week_info, matchups, rosters,
-                           finalized=True)
-                log.info("[PROGRESS] Season %d: week %d backfilled (%d matchups)",
-                         year, week_num, len(matchups))
+                store_week(
+                    conn, season_id, team_row_id, week_info, matchups, rosters, finalized=True
+                )
+                log.info(
+                    "[PROGRESS] Season %d: week %d backfilled (%d matchups)",
+                    year,
+                    week_num,
+                    len(matchups),
+                )
                 if delay:
                     time.sleep(delay)
         else:
-            log.info("Season %d: no playoff weeks to backfill (start=%s, current=%d)",
-                     year, start_week, current_week)
+            log.info(
+                "Season %d: no playoff weeks to backfill (start=%s, current=%d)",
+                year,
+                start_week,
+                current_week,
+            )
 
         _finalize_if_over(conn, season_id, teams, current_week, settings)
         _compute(conn, season_id, settings, sims)
 
     log.info("Computing running cross-season owner Elo...")
     compute_owner_elo_all(conn)
+    compute_players(conn)
     conn.close()
     log.info("Backfill complete. DB: %s", config.db_path)
 
@@ -317,9 +380,7 @@ def recompute(db_path: Path, sims: int = 2000) -> None:
     conn = connect(db_path)
     try:
         init_db(conn)
-        seasons = conn.execute(
-            "SELECT id, settings_json FROM seasons ORDER BY year"
-        ).fetchall()
+        seasons = conn.execute("SELECT id, settings_json FROM seasons ORDER BY year").fetchall()
         for row in seasons:
             import json
 
@@ -327,6 +388,7 @@ def recompute(db_path: Path, sims: int = 2000) -> None:
             n_playoff = int(settings.get("playoff_teams", 6))
             compute_all(conn, row["id"], n_playoff=n_playoff, sims=sims)
         compute_owner_elo_all(conn)
+        compute_players(conn)
     finally:
         conn.close()
     print(f"Recomputed stats for {len(seasons)} season(s).")
@@ -391,7 +453,8 @@ def show_status(db_path: Path) -> None:
             ).fetchone()["cnt"]
             matchups = conn.execute(
                 "SELECT COUNT(*) as cnt FROM matchups m JOIN weeks w ON w.id = m.week_id "
-                "WHERE w.season_id = ?", (season_id,)
+                "WHERE w.season_id = ?",
+                (season_id,),
             ).fetchone()["cnt"]
             has_elo = conn.execute(
                 "SELECT COUNT(*) as cnt FROM elo_ratings WHERE season_id = ?", (season_id,)

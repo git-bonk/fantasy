@@ -16,9 +16,11 @@ import { Reveal } from "@/components/motion/Reveal";
 import { SeasonPointsChart } from "@/components/charts/SeasonPointsChart";
 import { StreakBadge } from "@/components/cards/StreakBadge";
 import {
+  getMaxRegularWeek,
   getRankings,
   getStreaks,
   getTeam,
+  getTeamPlayerHistory,
   getTeamPointsByWeek,
   getTeamRecord,
   getTeamRoster,
@@ -46,6 +48,8 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
   const sos = getTeamSos(seasonId, teamId);
   const pointsByWeek = getTeamPointsByWeek(seasonId, teamId);
   const roster = getTeamRoster(seasonId, teamId);
+  const playerHistory = getTeamPlayerHistory(seasonId, teamId);
+  const maxRegularWeek = getMaxRegularWeek(seasonId);
   const elo = (await getRankings(seasonId)).find((r) => r.id === teamId)?.rating;
   const teamStreak = (await getStreaks(seasonId)).find((s) => s.team_id === teamId);
 
@@ -212,6 +216,71 @@ export default async function TeamDetailPage({ params, searchParams }: TeamDetai
                       </TableCell>
                       <TableCell className="py-2.5 text-right font-mono font-semibold tabular-nums">
                         {fmtPts(p.points)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={0.12}>
+        <Card className="border border-zinc-800 bg-zinc-900/60 py-0 ring-0">
+          <CardHeader className="border-b border-zinc-800 pb-3">
+            <CardTitle className="font-display">Player History</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-zinc-800 hover:bg-transparent">
+                  <TableHead className="text-zinc-500">Player</TableHead>
+                  <TableHead className="text-zinc-500">Pos</TableHead>
+                  <TableHead className="text-zinc-500">NFL Team</TableHead>
+                  <TableHead className="text-right text-zinc-500">First</TableHead>
+                  <TableHead className="text-right text-zinc-500">Last</TableHead>
+                  <TableHead className="text-right text-zinc-500">Wks</TableHead>
+                  <TableHead className="text-right text-zinc-500">Pts</TableHead>
+                  <TableHead className="text-right text-zinc-500">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {playerHistory.map((p) => {
+                  const active = p.last_week >= maxRegularWeek;
+                  return (
+                    <TableRow
+                      key={`${p.espn_player_id}-${p.first_week}`}
+                      className="border-zinc-800/70"
+                    >
+                      <TableCell className="py-2.5 font-semibold">{p.player_name}</TableCell>
+                      <TableCell className="py-2.5 font-mono text-xs text-zinc-400">
+                        {p.position}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-xs text-zinc-400">{p.nfl_team}</TableCell>
+                      <TableCell className="py-2.5 text-right font-mono text-xs tabular-nums text-zinc-400">
+                        {p.first_week}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right font-mono text-xs tabular-nums text-zinc-400">
+                        {p.last_week}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right font-mono text-xs tabular-nums">
+                        {p.weeks_held}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right font-mono font-semibold tabular-nums">
+                        {fmtPts(p.total_points)}
+                      </TableCell>
+                      <TableCell className="py-2.5 text-right">
+                        <span
+                          className={cn(
+                            "rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                            active
+                              ? "bg-emerald-500/10 text-emerald-500"
+                              : "bg-zinc-800 text-zinc-500"
+                          )}
+                        >
+                          {active ? "Active" : "Released"}
+                        </span>
                       </TableCell>
                     </TableRow>
                   );

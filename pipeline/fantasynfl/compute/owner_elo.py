@@ -4,6 +4,7 @@ import sqlite3
 from collections import defaultdict
 
 from .elo import INITIAL, K, _mov_multiplier, expected_score
+from .loaders import load_games
 from .types import GameResult
 
 REGRESSION = 0.75
@@ -54,28 +55,6 @@ def compute_owner_elo(
     return ratings, snapshots
 
 
-def _load_games(conn: sqlite3.Connection, season_id: int) -> list[GameResult]:
-    sql = """
-    SELECT w.week_num AS week_num, m.home_team_id AS home_id, m.away_team_id AS away_id,
-           m.home_score AS home_score, m.away_score AS away_score, m.is_playoff AS is_playoff
-    FROM matchups m
-    JOIN weeks w ON w.id = m.week_id
-    WHERE w.season_id = ?
-    ORDER BY w.week_num
-    """
-    return [
-        GameResult(
-            r["week_num"],
-            r["home_id"],
-            r["away_id"],
-            r["home_score"],
-            r["away_score"],
-            bool(r["is_playoff"]),
-        )
-        for r in conn.execute(sql, (season_id,)).fetchall()
-    ]
-
-
 def compute_owner_elo_all(conn: sqlite3.Connection, regress: float = REGRESSION) -> None:
     seasons = conn.execute("SELECT id, year FROM seasons ORDER BY year").fetchall()
     if not seasons:
@@ -99,10 +78,9 @@ def compute_owner_elo_all(conn: sqlite3.Connection, regress: float = REGRESSION)
 
         owners_this = set(team_owner.values())
         seed = {
-            o: regress_to_mean(carry[o], regress) if o in carry else INITIAL
-            for o in owners_this
+            o: regress_to_mean(carry[o], regress) if o in carry else INITIAL for o in owners_this
         }
-        final, snapshots = compute_owner_elo(_load_games(conn, season_id), team_owner, seed)
+        final, snapshots = compute_owner_elo(load_games(conn, season_id), team_owner, seed)
 
         for (owner, week), rating in snapshots.items():
             rows.append((owner, season_id, week, rating))

@@ -9,6 +9,7 @@ import {
   Newspaper,
   TrendingUp,
   Brain,
+  Target,
   Users,
   Swords,
   Star,
@@ -27,7 +28,8 @@ const navItems = [
   { href: "/scores", label: "Scores", icon: ClipboardList },
   { href: "/recap", label: "Recap", icon: Newspaper },
   { href: "/trends", label: "Trends", icon: TrendingUp },
-  { href: "/predict", label: "Predict", icon: Brain },
+  { href: "/predict", label: "Model", icon: Brain },
+  { href: "/predictions", label: "Predictions", icon: Target },
   { href: "/teams", label: "Teams", icon: Users },
   { href: "/history", label: "League History", icon: History },
   { href: "/playoffs", label: "Playoffs", icon: Swords },
@@ -56,7 +58,7 @@ export function Sidebar() {
             const isActive =
               item.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(item.href);
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
@@ -81,7 +83,7 @@ export function Sidebar() {
           const isActive =
             item.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(item.href);
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}

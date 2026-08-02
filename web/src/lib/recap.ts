@@ -1,7 +1,7 @@
 import { getEloAtWeek, getPredictData, getSeasonMatchups, getWeeks } from "./queries";
 import type { MatchupTag, PredictMatchupRow, RecapMatchupRow, SeasonMatchupRow } from "./types";
 
-const TAG_THRESHOLDS = {
+export const TAG_THRESHOLDS = {
   nailBiterMargin: 5,
   blowoutMargin: 30,
   statementMargin: 15,
@@ -9,14 +9,14 @@ const TAG_THRESHOLDS = {
   bustFraction: 0.85,
 };
 
-interface TagContext {
+export interface TagContext {
   weeklyAvg: number;
   maxCombined: number;
   topTeams: Set<number>;
   earlier: SeasonMatchupRow[];
 }
 
-function computeTag(m: PredictMatchupRow, ctx: TagContext): MatchupTag | null {
+export function computeTag(m: PredictMatchupRow, ctx: TagContext): MatchupTag | null {
   if (m.winner_team_id === null) return null;
 
   const winnerIsHome = m.winner_team_id === m.hid;

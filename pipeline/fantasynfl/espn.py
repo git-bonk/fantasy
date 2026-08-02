@@ -10,14 +10,33 @@ import logging
 import time
 from typing import Any
 
-from .models import Matchup, Owner, RosterPlayer, Team, Transaction, WeekInfo, WeekRoster
+from .models import (
+    Matchup,
+    Owner,
+    RosterPlayer,
+    ScheduledMatchup,
+    Team,
+    Transaction,
+    WeekInfo,
+    WeekRoster,
+)
 from .overrides import apply_override
 
 log = logging.getLogger("fantasynfl.espn")
 
 _PALETTE = [
-    "#22c55e", "#f59e0b", "#38bdf8", "#ef4444", "#a855f7", "#ec4899",
-    "#14b8a6", "#f97316", "#84cc16", "#6366f1", "#0ea5e9", "#eab308",
+    "#22c55e",
+    "#f59e0b",
+    "#38bdf8",
+    "#ef4444",
+    "#a855f7",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316",
+    "#84cc16",
+    "#6366f1",
+    "#0ea5e9",
+    "#eab308",
 ]
 
 MAX_RETRIES = 3
@@ -70,7 +89,11 @@ def _retry(fn: Any, *args: Any, label: str = "", **kwargs: Any) -> Any:
             delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
             log.warning(
                 "%s failed (attempt %d/%d): %s - retrying in %ds",
-                label or fn.__name__, attempt, MAX_RETRIES, exc, delay,
+                label or fn.__name__,
+                attempt,
+                MAX_RETRIES,
+                exc,
+                delay,
             )
             if attempt < MAX_RETRIES:
                 time.sleep(delay)
@@ -102,7 +125,10 @@ class ESPNClient:
     def _get_league(self) -> Any:
         if self._league is None:
             from espn_api.football import League
-            log.info("Initializing ESPN League(league_id=%s, year=%d)...", self.league_id, self.year)
+
+            log.info(
+                "Initializing ESPN League(league_id=%s, year=%d)...", self.league_id, self.year
+            )
             self._league = _retry(
                 League,
                 league_id=int(self.league_id),
@@ -132,7 +158,8 @@ class ESPNClient:
                 if len(member_owners) > 1:
                     log.info(
                         "Team %r has %d owners; using primary owner only",
-                        t.team_name, len(member_owners),
+                        t.team_name,
+                        len(member_owners),
                     )
                 owner = _owner_from_member(member_owners[0])
                 if owner.owner_id:
@@ -158,12 +185,42 @@ class ESPNClient:
         log.info("Fetched %d teams and %d owners for %d", len(teams), len(owners), self.year)
         return teams, owners
 
+    def fetch_schedule(self) -> list[ScheduledMatchup]:
+        """Return deduped regular-season pairings read from each team's schedule.
+
+        ``team.schedule[w]`` is the week-``w`` opponent ``Team`` (espn_api resolves
+        opponent ids to Team objects at league init), so this needs no extra API
+        calls. Both teams report every pairing, so rows are normalized to a canonical
+        ``(week_num, min(espn_id), max(espn_id))`` key and emitted once. Bye weeks
+        (opponent is the team itself) and playoff weeks are excluded.
+        """
+        league = self._get_league()
+        reg_weeks = int(getattr(league.settings, "reg_season_count", 0) or 0)
+        seen: set[tuple[int, int, int]] = set()
+        rows: list[ScheduledMatchup] = []
+        for team in league.teams:
+            for w, opponent in enumerate(team.schedule):
+                if reg_weeks and w >= reg_weeks:
+                    break
+                opp_id = getattr(opponent, "team_id", None)
+                if opp_id is None or opp_id == team.team_id:
+                    continue
+                a, b = sorted((int(team.team_id), int(opp_id)))
+                key = (w + 1, a, b)
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append(ScheduledMatchup(w + 1, a, b))
+        log.info("Fetched %d scheduled matchups for %d", len(rows), self.year)
+        return rows
+
     def fetch_week(self, week_num: int) -> tuple[WeekInfo, list[Matchup], list[WeekRoster]] | None:
         """Fetch one week of box scores. Returns None when no more weeks exist."""
         league = self._get_league()
         try:
             boxes = _retry(
-                league.box_scores, week_num,
+                league.box_scores,
+                week_num,
                 label=f"box_scores(week={week_num}, year={self.year})",
             )
         except RuntimeError:
@@ -198,10 +255,9 @@ class ESPNClient:
 
         # Dedup: ESPN returns the last real week's data for nonexistent weeks.
         # If matchups+scores are identical to the previous week, it's a phantom.
-        fingerprint = str(sorted(
-            (m.home_team_id, m.away_team_id, m.home_score, m.away_score)
-            for m in matchups
-        ))
+        fingerprint = str(
+            sorted((m.home_team_id, m.away_team_id, m.home_score, m.away_score) for m in matchups)
+        )
         if fingerprint == self._last_fingerprint:
             log.info(
                 "Week %d: identical to previous week - phantom duplicate, stopping",
@@ -212,7 +268,9 @@ class ESPNClient:
 
         log.info(
             "Week %d: %d matchups, %d rosters%s",
-            week_num, len(matchups), len(rosters),
+            week_num,
+            len(matchups),
+            len(rosters),
             " (playoff)" if is_playoff else "",
         )
         return week_info, matchups, rosters
@@ -235,6 +293,7 @@ class ESPNClient:
             date_iso = ""
             try:
                 from datetime import UTC, datetime
+
                 date_iso = datetime.fromtimestamp(act.date / 1000, tz=UTC).isoformat()
             except Exception:
                 pass

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AliasTag } from "@/components/cards/AliasTag";
+import { TeamLink } from "@/components/links/TeamLink";
 import { StatCard } from "@/components/cards/StatCard";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
@@ -272,12 +273,12 @@ export default async function OverviewPage({
                     height={48}
                   />
                 </div>
-                <Link
-                  href={`/teams/${topTeam.id}`}
+                <TeamLink
+                  teamId={topTeam.id}
                   className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-zinc-400 transition-colors hover:text-emerald-400"
                 >
                   View team <ArrowRight className="h-3 w-3" />
-                </Link>
+                </TeamLink>
               </CardContent>
             </Card>
           )}
@@ -361,9 +362,9 @@ export default async function OverviewPage({
             </div>
             <div className="divide-y divide-zinc-800/70">
               {rankings.slice(0, 5).map((t, i) => (
-                <Link
+                <TeamLink
                   key={t.id}
-                  href={`/teams/${t.id}`}
+                  teamId={t.id}
                   className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-foreground/[0.03]"
                 >
                   <span className="w-6 font-mono text-sm font-bold tabular-nums text-zinc-500">
@@ -388,7 +389,7 @@ export default async function OverviewPage({
                   <span className="hidden w-24 text-right text-[10px] tracking-wider text-zinc-500 uppercase sm:block">
                     Elo
                   </span>
-                </Link>
+                </TeamLink>
               ))}
             </div>
           </CardContent>

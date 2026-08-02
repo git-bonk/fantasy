@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SeasonProvider } from "@/lib/season-context";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
+import { NavRemount } from "@/components/layout/NavRemount";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -47,7 +48,7 @@ export default function RootLayout({
               <div className="md:pl-56">
                 <Topbar />
                 <main className="min-h-[calc(100vh-3.5rem)] p-4 pb-20 md:p-6 md:pb-6">
-                  {children}
+                  <NavRemount>{children}</NavRemount>
                 </main>
               </div>
             </SeasonProvider>

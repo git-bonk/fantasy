@@ -99,6 +99,8 @@ export interface Transaction {
   type: string;
   bid_amount: number | null;
   occurred_at: string;
+  week_num: number | null;
+  source: string;
 }
 
 export interface EloRating {
@@ -342,7 +344,8 @@ export interface TransactionRow {
   type: string;
   player_name: string | null;
   bid_amount: number | null;
-  occurred_at: string;
+  week_num: number;
+  week_label: string;
   tname: string | null;
   color: string | null;
   owner_alias_num?: number | null;
@@ -358,6 +361,17 @@ export interface TeamRosterRow {
 
 export interface WeekRosterRow extends TeamRosterRow {
   team_id: number;
+}
+
+export interface TeamPlayerHistoryRow {
+  espn_player_id: number;
+  player_name: string;
+  position: string;
+  nfl_team: string;
+  first_week: number;
+  last_week: number;
+  weeks_held: number;
+  total_points: number;
 }
 
 export interface TeamPointsWeekRow {
@@ -442,4 +456,66 @@ export interface RivalryGameRow {
 export interface TeamStreak {
   streak: number;
   type: "W" | "L";
+}
+
+export interface OwnerToken {
+  id: number;
+  owner_id: string;
+  label: string | null;
+  created_at: string;
+  revoked_at: string | null;
+}
+
+export interface Prediction {
+  owner_id: string;
+  season_id: number;
+  week_num: number;
+  matchup_key: string;
+  picked_team_id: number | null;
+  locked_at: string | null;
+}
+
+export interface ScheduledMatchup {
+  season_id: number;
+  week_num: number;
+  home_team_id: number;
+  away_team_id: number;
+  kickoff: string | null;
+}
+
+export interface PickableRow {
+  matchup_key: string;
+  kickoff: string | null;
+  home_score: number | null;
+  away_score: number | null;
+  winner_team_id: number | null;
+  hid: number;
+  hname: string;
+  habb: string;
+  hcolor: string;
+  h_alias: number | null;
+  aid: number;
+  aname: string;
+  aabb: string;
+  acolor: string;
+  a_alias: number | null;
+  prob: number | null;
+}
+
+export interface PredictionLeaderboardRow {
+  owner_id: string;
+  alias_num: number | null;
+  display_name: string;
+  correct: number;
+  total: number;
+  points: number;
+  streak: number;
+}
+
+export interface PickDistributionRow {
+  team_id: number;
+  abbrev: string;
+  color: string;
+  alias_num: number | null;
+  count: number;
 }

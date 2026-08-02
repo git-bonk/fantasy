@@ -4,11 +4,15 @@ import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OwnerEloChart } from "@/components/charts/OwnerEloChart";
 import { Reveal } from "@/components/motion/Reveal";
-import { getLeagueHistory, getOwnerEloHistory, getOwnerStandings } from "@/lib/queries";
+import {
+  getLeagueHistory,
+  getOwnerEloHistoryByAlias,
+  getOwnerStandings,
+} from "@/lib/queries";
 import { fmtPct, initials, ownerColor } from "@/lib/format";
 
 interface OwnerDetailPageProps {
-  params: Promise<{ ownerId: string }>;
+  params: Promise<{ aliasNum: string }>;
 }
 
 interface StatChipProps {
@@ -26,12 +30,14 @@ function StatChip({ label, value }: StatChipProps) {
 }
 
 export default async function OwnerDetailPage({ params }: OwnerDetailPageProps) {
-  const { ownerId } = await params;
-  const owner = (await getOwnerStandings()).find((o) => o.owner_id === ownerId);
+  const { aliasNum: aliasParam } = await params;
+  const aliasNum = Number.parseInt(aliasParam, 10);
+  if (!Number.isFinite(aliasNum)) notFound();
+  const owner = (await getOwnerStandings()).find((o) => o.owner_alias_num === aliasNum);
   if (!owner) notFound();
 
   const color = ownerColor(owner.owner_id);
-  const history = getOwnerEloHistory(ownerId);
+  const history = getOwnerEloHistoryByAlias(aliasNum);
   const games = owner.wins + owner.losses + owner.ties;
   const winPct = games > 0 ? fmtPct(owner.wins / games) : "—";
   const record =
@@ -39,7 +45,7 @@ export default async function OwnerDetailPage({ params }: OwnerDetailPageProps) 
       ? `${owner.wins}-${owner.losses}-${owner.ties}`
       : `${owner.wins}-${owner.losses}`;
 
-  const teamRows = (await getLeagueHistory()).filter((t) => t.owner_id === ownerId);
+  const teamRows = (await getLeagueHistory()).filter((t) => t.owner_alias_num === aliasNum);
   const teams = new Map<string, { name: string; abbrev: string; color: string; years: number[] }>();
   for (const row of teamRows) {
     const key = `${row.abbrev}-${row.team_name}`;

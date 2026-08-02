@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { WEEK_COOKIE, YEAR_COOKIE } from "./config";
 import { getSeasons, getSeasonIdByYear, getWeeks, getMaxWeek } from "./queries";
 import type { Week } from "./types";
 
@@ -29,8 +30,8 @@ export async function resolveSeason(
 
   if (params.year && !isNaN(Number(params.year))) {
     year = Number(params.year);
-  } else if (cookieStore.get("fantasy_year")?.value) {
-    year = Number(cookieStore.get("fantasy_year")!.value);
+  } else if (cookieStore.get(YEAR_COOKIE)?.value) {
+    year = Number(cookieStore.get(YEAR_COOKIE)!.value);
   } else {
     year = seasons[0]?.year ?? new Date().getFullYear();
   }
@@ -46,8 +47,8 @@ export async function resolveSeason(
 
   if (params.week && !isNaN(Number(params.week))) {
     weekNum = Math.min(Math.max(Number(params.week), 1), maxWeek);
-  } else if (cookieStore.get("fantasy_week")?.value) {
-    const cookieWeek = Number(cookieStore.get("fantasy_week")!.value);
+  } else if (cookieStore.get(WEEK_COOKIE)?.value) {
+    const cookieWeek = Number(cookieStore.get(WEEK_COOKIE)!.value);
     weekNum = !isNaN(cookieWeek) ? Math.min(Math.max(cookieWeek, 1), maxWeek) : maxWeek;
   } else {
     weekNum = maxWeek;

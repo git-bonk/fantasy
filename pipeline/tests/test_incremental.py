@@ -7,7 +7,7 @@ from pathlib import Path
 from fantasynfl.config import Config
 from fantasynfl.db import connect, ensure_season, get_season_status, init_db, store_teams
 from fantasynfl.ingest import _playoff_start_week, _season_is_over, backfill, ingest_espn
-from fantasynfl.models import Team
+from fantasynfl.models import ScheduledMatchup, Team
 from fantasynfl.sample import generate_season
 
 SEASON = generate_season(year=2025, seed=7)
@@ -40,6 +40,19 @@ class SampleClient:
     def fetch_teams(self):
         return self._teams, SEASON.owners
 
+    def fetch_schedule(self):
+        seen = set()
+        rows = []
+        for m in SEASON.matchups:
+            if m.is_playoff:
+                continue
+            a, b = sorted((m.home_team_id, m.away_team_id))
+            if (m.week_num, a, b) in seen:
+                continue
+            seen.add((m.week_num, a, b))
+            rows.append(ScheduledMatchup(m.week_num, a, b))
+        return rows
+
     def fetch_week(self, week_num):
         self.fetched.append(week_num)
         return self._weeks.get(week_num)
@@ -56,8 +69,11 @@ def _setup(clients):
     d = tempfile.mkdtemp()
     db = Path(d) / "test.db"
     config = Config(
-        league_id="test", espn_s2="x", swid="y",
-        seasons=tuple(clients.keys()), db_path=db,
+        league_id="test",
+        espn_s2="x",
+        swid="y",
+        seasons=tuple(clients.keys()),
+        db_path=db,
     )
     return config, db, d
 
@@ -66,13 +82,15 @@ def _factory_for(clients, created):
     def factory(year):
         created.append(clients[year])
         return clients[year]
+
     return factory
 
 
 def _week_finalized(db):
     conn = connect(db, readonly=True)
-    out = {r["week_num"]: r["finalized"] for r in conn.execute(
-        "SELECT week_num, finalized FROM weeks")}
+    out = {
+        r["week_num"]: r["finalized"] for r in conn.execute("SELECT week_num, finalized FROM weeks")
+    }
     conn.close()
     return out
 
@@ -152,11 +170,11 @@ def test_store_teams_upsert_keeps_stable_ids():
     t1 = Team(1, "A", "AAA", "Al", "#fff", final_standing=None)
     t2 = Team(2, "B", "BBB", "Bo", "#000", final_standing=None)
     ids1 = store_teams(conn, season_id, [t1, t2])
-    ids2 = store_teams(conn, season_id, [replace(t1, name="A2", final_standing=1),
-                                         replace(t2, final_standing=2)])
+    ids2 = store_teams(
+        conn, season_id, [replace(t1, name="A2", final_standing=1), replace(t2, final_standing=2)]
+    )
     assert ids1 == ids2
-    rows = conn.execute(
-        "SELECT name, final_standing FROM teams ORDER BY espn_team_id").fetchall()
+    rows = conn.execute("SELECT name, final_standing FROM teams ORDER BY espn_team_id").fetchall()
     assert len(rows) == 2
     assert (rows[0]["name"], rows[0]["final_standing"]) == ("A2", 1)
     assert rows[1]["final_standing"] == 2
@@ -197,36 +215,52 @@ def test_migration_backfills_finalized_and_status():
     conn.executescript(OLD_SCHEMA)
     conn.execute(
         "INSERT INTO seasons (year, league_id, settings_json, created_at) "
-        "VALUES (2024, 'x', '{}', '2024')")
+        "VALUES (2024, 'x', '{}', '2024')"
+    )
     done_id = conn.execute("SELECT id FROM seasons WHERE year = 2024").fetchone()[0]
     for i in range(1, 4):
         conn.execute(
             "INSERT INTO teams (season_id, espn_team_id, name, abbrev, owner_name, color, "
             "final_standing) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (done_id, i, f"T{i}", f"T{i}", "O", "#000", i))
+            (done_id, i, f"T{i}", f"T{i}", "O", "#000", i),
+        )
     for wk in range(1, 6):
-        conn.execute("INSERT INTO weeks (season_id, week_num, label) VALUES (?, ?, ?)",
-                     (done_id, wk, f"W{wk}"))
+        conn.execute(
+            "INSERT INTO weeks (season_id, week_num, label) VALUES (?, ?, ?)",
+            (done_id, wk, f"W{wk}"),
+        )
     conn.execute(
         "INSERT INTO seasons (year, league_id, settings_json, created_at) "
-        "VALUES (2025, 'x', '{}', '2025')")
+        "VALUES (2025, 'x', '{}', '2025')"
+    )
     active_id = conn.execute("SELECT id FROM seasons WHERE year = 2025").fetchone()[0]
     conn.execute(
         "INSERT INTO teams (season_id, espn_team_id, name, abbrev, owner_name, color, "
         "final_standing) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (active_id, 1, "T", "T", "O", "#000", None))
+        (active_id, 1, "T", "T", "O", "#000", None),
+    )
     for wk in range(1, 4):
-        conn.execute("INSERT INTO weeks (season_id, week_num, label) VALUES (?, ?, ?)",
-                     (active_id, wk, f"W{wk}"))
+        conn.execute(
+            "INSERT INTO weeks (season_id, week_num, label) VALUES (?, ?, ?)",
+            (active_id, wk, f"W{wk}"),
+        )
     conn.commit()
 
     init_db(conn)
 
-    done = {r["week_num"]: r["finalized"] for r in conn.execute(
-        "SELECT week_num, finalized FROM weeks WHERE season_id = ?", (done_id,))}
+    done = {
+        r["week_num"]: r["finalized"]
+        for r in conn.execute(
+            "SELECT week_num, finalized FROM weeks WHERE season_id = ?", (done_id,)
+        )
+    }
     assert done == {1: 1, 2: 1, 3: 1, 4: 1, 5: 0}
-    active = {r["week_num"]: r["finalized"] for r in conn.execute(
-        "SELECT week_num, finalized FROM weeks WHERE season_id = ?", (active_id,))}
+    active = {
+        r["week_num"]: r["finalized"]
+        for r in conn.execute(
+            "SELECT week_num, finalized FROM weeks WHERE season_id = ?", (active_id,)
+        )
+    }
     assert active == {1: 1, 2: 1, 3: 0}
     assert get_season_status(conn, 2024) == "complete"
     assert get_season_status(conn, 2025) == "active"
@@ -235,8 +269,10 @@ def test_migration_backfills_finalized_and_status():
 
 def test_season_is_over_requires_final_standing_and_post_regular_season():
     settings = {"playoff_teams": 6, "playoff": {"regular_season_weeks": 14}}
-    done = [Team(1, "A", "A", "O", "#fff", final_standing=1),
-            Team(2, "B", "B", "O", "#fff", final_standing=2)]
+    done = [
+        Team(1, "A", "A", "O", "#fff", final_standing=1),
+        Team(2, "B", "B", "O", "#fff", final_standing=2),
+    ]
     ongoing = [replace(t, final_standing=None) for t in done]
     assert _season_is_over(done, 17, settings) is True
     assert _season_is_over(done, 10, settings) is False
@@ -268,8 +304,7 @@ def test_backfill_fetches_only_playoff_weeks_and_completes():
         backfill(config, sims=3, client_factory=_factory_for({2025: c2}, []))
         assert sorted(c2.fetched) == [15, 16, 17]
         conn = connect(db, readonly=True)
-        fs = conn.execute(
-            "SELECT COUNT(*) FROM teams WHERE final_standing > 0").fetchone()[0]
+        fs = conn.execute("SELECT COUNT(*) FROM teams WHERE final_standing > 0").fetchone()[0]
         assert fs == 12
         playoff = conn.execute(
             "SELECT COUNT(*) FROM matchups m JOIN weeks w ON w.id = m.week_id "
