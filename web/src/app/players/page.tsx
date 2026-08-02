@@ -55,37 +55,12 @@ export default async function PlayersPage({
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Players</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Top performers and season leaders across the league.
+            Every player&apos;s season at a glance, plus weekly standouts and position leaders.
           </p>
         </div>
       </Reveal>
 
       <Reveal delay={0.05}>
-        <section className="space-y-4">
-          <h2 className="font-display text-xl font-semibold tracking-tight">
-            Top Performers
-            <span className="ml-2 text-sm font-normal text-muted-foreground">{weekLabel}</span>
-          </h2>
-          {performers.length > 0 ? (
-            <PerformersTable players={performers} />
-          ) : (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-              No player performances recorded for this week.
-            </div>
-          )}
-        </section>
-      </Reveal>
-
-      <Reveal delay={0.1}>
-        <section className="space-y-4">
-          <h2 className="font-display text-xl font-semibold tracking-tight">
-            Season Leaders by Position
-          </h2>
-          <PositionLeaders data={positionLeaders} />
-        </section>
-      </Reveal>
-
-      <Reveal delay={0.15}>
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="font-display text-xl font-semibold tracking-tight">
@@ -110,6 +85,31 @@ export default async function PlayersPage({
             </div>
           </div>
           <SeasonPlayerTable rows={tableRows} revealed={revealed} />
+        </section>
+      </Reveal>
+
+      <Reveal delay={0.1}>
+        <section className="space-y-4">
+          <h2 className="font-display text-xl font-semibold tracking-tight">
+            Top Performers
+            <span className="ml-2 text-sm font-normal text-muted-foreground">{weekLabel}</span>
+          </h2>
+          {performers.length > 0 ? (
+            <PerformersTable players={performers} />
+          ) : (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
+              No player performances recorded for this week.
+            </div>
+          )}
+        </section>
+      </Reveal>
+
+      <Reveal delay={0.15}>
+        <section className="space-y-4">
+          <h2 className="font-display text-xl font-semibold tracking-tight">
+            Season Leaders by Position
+          </h2>
+          <PositionLeaders data={positionLeaders} />
         </section>
       </Reveal>
     </div>

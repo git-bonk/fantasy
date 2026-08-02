@@ -1,10 +1,20 @@
-import { ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { TeamLink } from "@/components/links/TeamLink";
 import { cn } from "@/lib/utils";
 import type { TransactionFeedRow } from "@/lib/queries";
 
 interface TransactionFeedProps {
   transactions: TransactionFeedRow[];
+}
+
+interface WeekGroup {
+  weekNum: number;
+  label: string;
+  items: TransactionFeedRow[];
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -14,14 +24,19 @@ const TYPE_LABELS: Record<string, string> = {
   TRADE_OUT: "TRADE OUT",
 };
 
+const NAV_BUTTON =
+  "flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/60 text-zinc-300 transition-colors hover:border-zinc-700 hover:text-emerald-400 disabled:pointer-events-none disabled:opacity-30";
+
 function isIncoming(type: string): boolean {
   return type === "ADD" || type === "TRADE_IN";
 }
 
-function groupByWeek(
-  transactions: TransactionFeedRow[]
-): { weekNum: number; label: string; items: TransactionFeedRow[] }[] {
-  const groups: { weekNum: number; label: string; items: TransactionFeedRow[] }[] = [];
+function shortLabel(label: string): string {
+  return label.replace(/^Week\s+/i, "W");
+}
+
+function groupByWeek(transactions: TransactionFeedRow[]): WeekGroup[] {
+  const groups: WeekGroup[] = [];
   for (const tx of transactions) {
     const last = groups[groups.length - 1];
     if (last && last.weekNum === tx.week_num) {
@@ -34,25 +49,83 @@ function groupByWeek(
 }
 
 export function TransactionFeed({ transactions }: TransactionFeedProps) {
+  const [selected, setSelected] = useState(0);
+  const reduce = useReducedMotion();
   const groups = groupByWeek(transactions);
+  const group = groups[selected];
+
+  if (!group) return null;
 
   return (
-    <div className="space-y-8">
-      {groups.map((group) => (
-        <div key={group.weekNum}>
-          <div className="mb-3 flex items-center gap-3">
-            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              {group.label}
-            </h3>
-            <div className="h-px flex-1 bg-border" />
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Previous week"
+            className={NAV_BUTTON}
+            disabled={selected === 0}
+            onClick={() => setSelected((s) => Math.max(0, s - 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="min-w-28 text-center">
+            <div className="font-display text-sm font-semibold tracking-tight">{group.label}</div>
+            <div className="text-[11px] text-muted-foreground">
+              {group.items.length} move{group.items.length === 1 ? "" : "s"}
+            </div>
           </div>
-          <div className="space-y-2">
+          <button
+            type="button"
+            aria-label="Next week"
+            className={NAV_BUTTON}
+            disabled={selected === groups.length - 1}
+            onClick={() => setSelected((s) => Math.min(groups.length - 1, s + 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex max-w-full flex-wrap gap-1">
+          {groups.map((g, i) => (
+            <button
+              key={g.weekNum}
+              type="button"
+              onClick={() => setSelected(i)}
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums transition-colors",
+                i === selected
+                  ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
+                  : "border-zinc-800 bg-zinc-900/60 text-zinc-500 hover:border-zinc-700 hover:text-zinc-200"
+              )}
+            >
+              {shortLabel(g.label)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {reduce ? (
+        <div className="space-y-2">
+          {group.items.map((tx, i) => (
+            <TransactionItem key={`${tx.week_num}-${tx.player_name}-${i}`} tx={tx} />
+          ))}
+        </div>
+      ) : (
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={group.weekNum}
+            className="space-y-2"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
             {group.items.map((tx, i) => (
               <TransactionItem key={`${tx.week_num}-${tx.player_name}-${i}`} tx={tx} />
             ))}
-          </div>
-        </div>
-      ))}
+          </motion.div>
+        </AnimatePresence>
+      )}
     </div>
   );
 }

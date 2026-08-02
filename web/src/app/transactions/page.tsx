@@ -36,16 +36,6 @@ export default async function TransactionsPage({
       </Reveal>
 
       <Reveal delay={0.05}>
-        {transactions.length > 0 ? (
-          <TransactionFeed transactions={transactions} />
-        ) : (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
-            No transactions recorded this season.
-          </div>
-        )}
-      </Reveal>
-
-      <Reveal delay={0.1}>
         <section className="space-y-4">
           <div>
             <h2 className="font-display text-xl font-bold tracking-tight">Trade grades</h2>
@@ -66,6 +56,24 @@ export default async function TransactionsPage({
             </p>
           </div>
           <WaiverImpact moves={topMoves} leaderboard={leaderboard} />
+        </section>
+      </Reveal>
+
+      <Reveal delay={0.2}>
+        <section className="space-y-4">
+          <div>
+            <h2 className="font-display text-xl font-bold tracking-tight">Transaction feed</h2>
+            <p className="mt-1 text-sm text-zinc-400">
+              Every add, drop, and trade — one week at a time.
+            </p>
+          </div>
+          {transactions.length > 0 ? (
+            <TransactionFeed transactions={transactions} />
+          ) : (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-8 text-center text-sm text-zinc-400">
+              No transactions recorded this season.
+            </div>
+          )}
         </section>
       </Reveal>
     </div>
