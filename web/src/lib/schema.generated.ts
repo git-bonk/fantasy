@@ -225,3 +225,14 @@ export interface WaiverImpact {
   points_after: number;
   label: string;
 }
+
+export interface PlayoffScenarios {
+  id: number;
+  season_id: number;
+  week_num: number;
+  team_id: number;
+  p_wins_out: number | null;
+  p_lose_out: number | null;
+  min_wins_fifty: number | null;
+  win_dist_json: string;
+}

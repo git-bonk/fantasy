@@ -248,6 +248,18 @@ CREATE TABLE IF NOT EXISTS waiver_impact (
   label TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS playoff_scenarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  season_id INTEGER NOT NULL,
+  week_num INTEGER NOT NULL,
+  team_id INTEGER NOT NULL,
+  p_wins_out REAL,
+  p_lose_out REAL,
+  min_wins_fifty INTEGER,
+  win_dist_json TEXT NOT NULL,
+  UNIQUE(season_id, week_num, team_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_teams_season ON teams(season_id);
 CREATE INDEX IF NOT EXISTS idx_weeks_season ON weeks(season_id);
 CREATE INDEX IF NOT EXISTS idx_matchups_week ON matchups(week_id);
