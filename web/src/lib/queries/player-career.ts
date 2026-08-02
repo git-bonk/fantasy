@@ -136,7 +136,7 @@ export async function getPlayerOwnership(espnPlayerId: number): Promise<PlayerOw
                 JOIN seasons s ON s.id = w.season_id
                 JOIN teams t ON t.id = r.team_id
                 WHERE r.espn_player_id = @playerId AND t.owner_id IS NOT NULL
-                GROUP BY t.owner_id)) AS max_seasons_same_owner`
+                GROUP BY t.owner_id) AS per_owner) AS max_seasons_same_owner`
     )
     .get({ playerId: espnPlayerId }) as {
     distinct_owners: number | null;
