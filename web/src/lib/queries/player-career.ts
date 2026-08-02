@@ -20,7 +20,6 @@ export interface PlayerTenureRow {
   abbrev: string;
   color: string;
   owner_name: string;
-  owner_id: string | null;
   owner_alias_num: number | null;
   weeks: number;
   total_points: number;
@@ -31,7 +30,12 @@ export interface PlayerTenureRow {
 export interface CareerSummary {
   totalPoints: number;
   seasonsPlayed: number;
+}
+
+/** Owner-aggregate stats resolved server-side (ESPN owner ids never leave this module). */
+export interface PlayerOwnership {
   distinctOwners: number;
+  maxSeasonsSameOwner: number;
 }
 
 export interface SeasonPointsPoint {
@@ -55,7 +59,6 @@ const TENURE_SQL = `
          t.abbrev AS abbrev,
          t.color AS color,
          t.owner_name AS owner_name,
-         o.id AS owner_id,
          o.alias_num AS owner_alias_num,
          COUNT(DISTINCT w.week_num) AS weeks,
          SUM(r.points) AS total_points,
@@ -95,8 +98,8 @@ export async function getPlayerCareer(espnPlayerId: number): Promise<PlayerCaree
 
 /**
  * Per (season year, team) roster tenure for a player. Team/owner identity is masked
- * like every other query; owner_id is retained server-side as the franchise-legend
- * grouping key and is never rendered or sent to a client component.
+ * like every other query; ESPN owner ids are never selected — legend/owner aggregates
+ * come from getPlayerOwnership, which keeps them server-side.
  */
 export async function getPlayerTenure(espnPlayerId: number): Promise<PlayerTenureRow[]> {
   const rows = db
@@ -112,32 +115,54 @@ export async function getPlayerTenure(espnPlayerId: number): Promise<PlayerTenur
   }));
 }
 
+/**
+ * Owner aggregates resolved in SQL so ESPN owner ids never reach row payloads:
+ * distinct owners across the career, and the most seasons spent under a single
+ * owner (the franchise-legend input).
+ */
+export async function getPlayerOwnership(espnPlayerId: number): Promise<PlayerOwnership> {
+  const row = db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(DISTINCT t.owner_id)
+          FROM rosters r
+          JOIN weeks w ON w.id = r.week_id
+          JOIN teams t ON t.id = r.team_id
+          WHERE r.espn_player_id = @playerId AND t.owner_id IS NOT NULL) AS distinct_owners,
+         (SELECT MAX(per_owner.seasons)
+          FROM (SELECT COUNT(DISTINCT s.year) AS seasons
+                FROM rosters r
+                JOIN weeks w ON w.id = r.week_id
+                JOIN seasons s ON s.id = w.season_id
+                JOIN teams t ON t.id = r.team_id
+                WHERE r.espn_player_id = @playerId AND t.owner_id IS NOT NULL
+                GROUP BY t.owner_id)) AS max_seasons_same_owner`
+    )
+    .get({ playerId: espnPlayerId }) as {
+    distinct_owners: number | null;
+    max_seasons_same_owner: number | null;
+  };
+
+  return {
+    distinctOwners: row.distinct_owners ?? 0,
+    maxSeasonsSameOwner: row.max_seasons_same_owner ?? 0,
+  };
+}
+
 /** True when a player spent FRANCHISE_LEGEND_SEASONS+ distinct seasons under one owner. */
-export function isFranchiseLegend(tenure: PlayerTenureRow[]): boolean {
-  const yearsByOwner = new Map<string, Set<number>>();
-  for (const row of tenure) {
-    if (row.owner_id == null) continue;
-    const years = yearsByOwner.get(row.owner_id) ?? new Set<number>();
-    years.add(row.year);
-    yearsByOwner.set(row.owner_id, years);
-  }
-  for (const years of yearsByOwner.values()) {
-    if (years.size >= FRANCHISE_LEGEND_SEASONS) return true;
-  }
-  return false;
+export function isFranchiseLegend(maxSeasonsSameOwner: number): boolean {
+  return maxSeasonsSameOwner >= FRANCHISE_LEGEND_SEASONS;
 }
 
 /** Career aggregates derived from tenure rows. */
 export function summarizeCareer(tenure: PlayerTenureRow[]): CareerSummary {
   let totalPoints = 0;
   const years = new Set<number>();
-  const owners = new Set<string>();
   for (const row of tenure) {
     totalPoints += row.total_points;
     years.add(row.year);
-    if (row.owner_id != null) owners.add(row.owner_id);
   }
-  return { totalPoints, seasonsPlayed: years.size, distinctOwners: owners.size };
+  return { totalPoints, seasonsPlayed: years.size };
 }
 
 /** Total points per season (collapsing mid-season trades), sorted ascending by year. */

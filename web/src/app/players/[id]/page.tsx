@@ -11,6 +11,7 @@ import { TenureTimeline } from "@/components/players/TenureTimeline";
 import {
   careerSpan,
   getPlayerCareer,
+  getPlayerOwnership,
   getPlayerTenure,
   isFranchiseLegend,
   pointsBySeason,
@@ -30,8 +31,9 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
   if (!career) notFound();
 
   const tenure = await getPlayerTenure(espnPlayerId);
+  const ownership = await getPlayerOwnership(espnPlayerId);
   const summary = summarizeCareer(tenure);
-  const legend = isFranchiseLegend(tenure);
+  const legend = isFranchiseLegend(ownership.maxSeasonsSameOwner);
   const seasonPoints = pointsBySeason(tenure);
 
   return (
@@ -74,7 +76,7 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
           />
           <StatCard
             label="Distinct Owners"
-            value={summary.distinctOwners}
+            value={ownership.distinctOwners}
             icon={Users}
             accent="#a855f7"
           />

@@ -9,7 +9,6 @@ import {
 function pick(over: Partial<DraftValuePick> & { round_num: number; produced: number }): DraftValuePick {
   return {
     team_id: 1,
-    espn_team_id: 1,
     tname: "Team",
     color: "#fff",
     owner_alias_num: 1,

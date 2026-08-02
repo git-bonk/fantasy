@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { maskRows, maskedTeamName } from "./shared";
+import { maskRows, maskedTeamAbbrev, maskedTeamName } from "./shared";
 
 export interface DraftPickRow {
   id: number;
@@ -12,7 +12,6 @@ export interface DraftPickRow {
   nfl_team: string | null;
   bid_amount: number | null;
   keeper_status: number;
-  espn_team_id: number;
   team_id: number | null;
   tname: string | null;
   abbrev: string | null;
@@ -22,7 +21,6 @@ export interface DraftPickRow {
 
 export interface DraftValuePick {
   team_id: number;
-  espn_team_id: number;
   tname: string;
   color: string | null;
   owner_alias_num: number | null;
@@ -70,7 +68,7 @@ export async function getDraft(seasonId: number): Promise<DraftPickRow[]> {
     .prepare(
       `SELECT d.id, d.round_num, d.round_pick, d.overall_pick, d.espn_player_id,
               d.player_name, d.position, d.nfl_team, d.bid_amount, d.keeper_status,
-              d.espn_team_id, t.id AS team_id, t.name AS tname, t.abbrev AS abbrev,
+              t.id AS team_id, t.name AS tname, t.abbrev AS abbrev,
               t.color AS color, o.alias_num AS owner_alias_num
        FROM draft_picks d
        JOIN teams t ON t.id = d.team_id
@@ -82,6 +80,7 @@ export async function getDraft(seasonId: number): Promise<DraftPickRow[]> {
 
   return maskRows(rows, (r) => ({
     tname: r.tname === null ? null : maskedTeamName(r.owner_alias_num),
+    abbrev: r.abbrev === null ? null : maskedTeamAbbrev(r.owner_alias_num),
   }));
 }
 
@@ -93,7 +92,7 @@ export async function getDraft(seasonId: number): Promise<DraftPickRow[]> {
 export async function getDraftValue(seasonId: number): Promise<DraftValuePick[]> {
   const rows = db
     .prepare(
-      `SELECT d.team_id, d.espn_team_id, d.player_name, d.position, d.round_num, d.round_pick,
+      `SELECT d.team_id, d.player_name, d.position, d.round_num, d.round_pick,
               t.name AS tname, t.color AS color, o.alias_num AS owner_alias_num,
               COALESCE((
                 SELECT SUM(r.points)

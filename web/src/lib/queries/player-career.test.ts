@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   careerSpan,
+  FRANCHISE_LEGEND_SEASONS,
   isFranchiseLegend,
   pointsBySeason,
   summarizeCareer,
@@ -15,7 +16,6 @@ const tenure = (over: Partial<PlayerTenureRow> = {}): PlayerTenureRow => ({
   abbrev: "T1",
   color: "#111111",
   owner_name: "Owner 1",
-  owner_id: "owner-1",
   owner_alias_num: 1,
   weeks: 12,
   total_points: 100,
@@ -25,70 +25,33 @@ const tenure = (over: Partial<PlayerTenureRow> = {}): PlayerTenureRow => ({
 });
 
 describe("isFranchiseLegend", () => {
-  it("is false for only two seasons under the same owner", () => {
-    const rows = [
-      tenure({ year: 2020, owner_id: "a" }),
-      tenure({ year: 2021, owner_id: "a" }),
-    ];
-    expect(isFranchiseLegend(rows)).toBe(false);
+  it("is false below the threshold", () => {
+    expect(isFranchiseLegend(0)).toBe(false);
+    expect(isFranchiseLegend(FRANCHISE_LEGEND_SEASONS - 1)).toBe(false);
   });
 
-  it("is true for three seasons under the same owner", () => {
-    const rows = [
-      tenure({ year: 2020, owner_id: "a" }),
-      tenure({ year: 2021, owner_id: "a" }),
-      tenure({ year: 2022, owner_id: "a" }),
-    ];
-    expect(isFranchiseLegend(rows)).toBe(true);
-  });
-
-  it("is false when four seasons are split across two owners", () => {
-    const rows = [
-      tenure({ year: 2020, owner_id: "a" }),
-      tenure({ year: 2021, owner_id: "a" }),
-      tenure({ year: 2022, owner_id: "b" }),
-      tenure({ year: 2023, owner_id: "b" }),
-    ];
-    expect(isFranchiseLegend(rows)).toBe(false);
-  });
-
-  it("counts distinct years, so a mid-season trade is still one season", () => {
-    const rows = [
-      tenure({ year: 2020, team_id: 1, owner_id: "a" }),
-      tenure({ year: 2020, team_id: 2, owner_id: "a" }),
-      tenure({ year: 2021, owner_id: "a" }),
-    ];
-    expect(isFranchiseLegend(rows)).toBe(false);
-  });
-
-  it("ignores tenures with no owner", () => {
-    const rows = [
-      tenure({ year: 2020, owner_id: null }),
-      tenure({ year: 2021, owner_id: null }),
-      tenure({ year: 2022, owner_id: null }),
-    ];
-    expect(isFranchiseLegend(rows)).toBe(false);
+  it("is true at and above the threshold", () => {
+    expect(isFranchiseLegend(FRANCHISE_LEGEND_SEASONS)).toBe(true);
+    expect(isFranchiseLegend(FRANCHISE_LEGEND_SEASONS + 2)).toBe(true);
   });
 });
 
 describe("summarizeCareer", () => {
-  it("sums points and counts distinct seasons and owners", () => {
+  it("sums points and counts distinct seasons", () => {
     const rows = [
-      tenure({ year: 2020, owner_id: "a", total_points: 100 }),
-      tenure({ year: 2021, owner_id: "a", total_points: 50.5 }),
-      tenure({ year: 2021, team_id: 2, owner_id: "b", total_points: 25 }),
+      tenure({ year: 2020, total_points: 100 }),
+      tenure({ year: 2021, total_points: 50.5 }),
+      tenure({ year: 2021, team_id: 2, total_points: 25 }),
     ];
     const summary = summarizeCareer(rows);
     expect(summary.totalPoints).toBeCloseTo(175.5);
     expect(summary.seasonsPlayed).toBe(2);
-    expect(summary.distinctOwners).toBe(2);
   });
 
   it("returns zeros for an empty career", () => {
     expect(summarizeCareer([])).toEqual({
       totalPoints: 0,
       seasonsPlayed: 0,
-      distinctOwners: 0,
     });
   });
 });

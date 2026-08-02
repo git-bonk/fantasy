@@ -164,9 +164,9 @@ function playoffCutoffFromSettings(settingsJson: string): number | null {
 // Per team-season, the record prefers the team's latest playoff_snapshots row:
 // ESPN's official regular-season W/L/T and PF/PA, the same source getTeams and
 // getFinalStandings render, so hub numbers match every standings page. Deriving
-// from matchups.winner_team_id (the getOwnerStandings approach) folds playoff
-// and consolation games into the record, so it is only a fallback for
-// team-seasons that have no snapshot rows.
+// from matchups.winner_team_id (the getOwnerStandings approach) is only a
+// fallback for team-seasons with no snapshot rows, and is restricted to
+// regular-season weeks so it cannot fold playoff/consolation games in.
 export async function getOwnerCareerByAlias(aliasNum: number): Promise<OwnerCareer> {
   const raw = db
     .prepare(
@@ -194,18 +194,22 @@ export async function getOwnerCareerByAlias(aliasNum: number): Promise<OwnerCare
                 SUM(sub.score) AS points_for,
                 SUM(sub.opp_score) AS points_against
          FROM (
-           SELECT m.home_team_id AS team_id,
-                  CASE WHEN m.winner_team_id = m.home_team_id THEN 'W'
-                       WHEN m.winner_team_id IS NULL THEN 'T' ELSE 'L' END AS outcome,
-                  m.home_score AS score, m.away_score AS opp_score
-           FROM matchups m
-           UNION ALL
-           SELECT m.away_team_id AS team_id,
-                  CASE WHEN m.winner_team_id = m.away_team_id THEN 'W'
-                       WHEN m.winner_team_id IS NULL THEN 'T' ELSE 'L' END AS outcome,
-                  m.away_score AS score, m.home_score AS opp_score
-           FROM matchups m
-         ) sub
+            SELECT m.home_team_id AS team_id,
+                   CASE WHEN m.winner_team_id = m.home_team_id THEN 'W'
+                        WHEN m.winner_team_id IS NULL THEN 'T' ELSE 'L' END AS outcome,
+                   m.home_score AS score, m.away_score AS opp_score
+            FROM matchups m
+            JOIN weeks w ON w.id = m.week_id
+            WHERE w.is_playoff = 0
+            UNION ALL
+            SELECT m.away_team_id AS team_id,
+                   CASE WHEN m.winner_team_id = m.away_team_id THEN 'W'
+                        WHEN m.winner_team_id IS NULL THEN 'T' ELSE 'L' END AS outcome,
+                   m.away_score AS score, m.home_score AS opp_score
+            FROM matchups m
+            JOIN weeks w ON w.id = m.week_id
+            WHERE w.is_playoff = 0
+          ) sub
          GROUP BY sub.team_id
        ) rec ON rec.team_id = t.id
        WHERE o.alias_num = ?

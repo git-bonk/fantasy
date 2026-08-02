@@ -11,6 +11,10 @@ _DERIVED_TABLES = (
     "luck",
     "sos",
     "playoff_snapshots",
+    "playoff_scenarios",
+    "coach_ratings",
+    "trades",
+    "waiver_impact",
     "records",
     "scheduled_matchups",
 )
