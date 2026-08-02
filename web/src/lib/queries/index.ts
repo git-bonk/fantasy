@@ -11,3 +11,6 @@ export * from "./transactions";
 export * from "./records";
 export * from "./rivalry";
 export * from "./predictions";
+export * from "./coach";
+export * from "./trades";
+export * from "./waiver";

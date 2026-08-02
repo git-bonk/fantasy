@@ -8,12 +8,37 @@ from __future__ import annotations
 
 import sqlite3
 
-from .types import GameResult
+from .types import GameResult, RosterRow
 
 
 def load_team_ids(conn: sqlite3.Connection, season_id: int) -> list[int]:
     rows = conn.execute("SELECT id FROM teams WHERE season_id = ?", (season_id,)).fetchall()
     return [r["id"] for r in rows]
+
+
+def load_rosters(conn: sqlite3.Connection, season_id: int) -> list[RosterRow]:
+    """Every roster row for a season (all lineup slots, incl. BN/IR), ordered by week."""
+    sql = """
+    SELECT w.week_num AS week_num, r.team_id AS team_id, r.espn_player_id AS espn_player_id,
+           r.player_name AS player_name, r.position AS position, r.lineup_slot AS lineup_slot,
+           r.points AS points
+    FROM rosters r
+    JOIN weeks w ON w.id = r.week_id
+    WHERE w.season_id = ?
+    ORDER BY w.week_num
+    """
+    return [
+        RosterRow(
+            r["week_num"],
+            r["team_id"],
+            r["espn_player_id"],
+            r["player_name"],
+            r["position"],
+            r["lineup_slot"],
+            r["points"],
+        )
+        for r in conn.execute(sql, (season_id,)).fetchall()
+    ]
 
 
 def load_games(conn: sqlite3.Connection, season_id: int) -> list[GameResult]:

@@ -187,3 +187,41 @@ export interface Players {
   first_season_id: number | null;
   last_season_id: number | null;
 }
+
+export interface CoachRatings {
+  id: number;
+  season_id: number;
+  team_id: number;
+  week_num: number;
+  actual_points: number;
+  optimal_points: number;
+  bench_points: number;
+  efficiency: number;
+}
+
+export interface Trades {
+  id: number;
+  season_id: number;
+  week_num: number;
+  team_a_id: number;
+  team_b_id: number;
+  a_players_json: string;
+  b_players_json: string;
+  a_points: number | null;
+  b_points: number | null;
+  winner_side: string | null;
+  weeks_evaluated: number;
+  finalized: number;
+}
+
+export interface WaiverImpact {
+  id: number;
+  season_id: number;
+  team_id: number;
+  espn_player_id: number;
+  player_name: string;
+  move_type: string;
+  week_num: number;
+  points_after: number;
+  label: string;
+}

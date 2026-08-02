@@ -24,3 +24,20 @@ class GameResult:
         if self.away_score > self.home_score:
             return self.away_id
         return None
+
+
+@dataclass(frozen=True)
+class RosterRow:
+    """One player on one team's roster for one week, in any lineup slot."""
+
+    week_num: int
+    team_id: int
+    espn_player_id: int
+    player_name: str
+    position: str
+    lineup_slot: str
+    points: float
+
+    @property
+    def is_starter(self) -> bool:
+        return self.lineup_slot in {"QB", "RB", "WR", "TE", "FLEX", "K", "DEF"}
