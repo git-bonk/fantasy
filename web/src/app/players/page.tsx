@@ -1,9 +1,7 @@
 import Link from "next/link";
 import {
-  getPositionLeaders,
   getSeasonPlayerTable,
   getSeasons,
-  getTopPerformers,
   ptsPerGame,
   type SeasonPlayerTableRow,
 } from "@/lib/queries";
@@ -12,8 +10,6 @@ import { getRevealState } from "@/lib/reveal";
 import { PageHeader } from "@/components/PageHeader";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
-import { PerformersTable } from "@/components/players/PerformersTable";
-import { PositionLeaders } from "@/components/players/PositionLeaders";
 import { SeasonPlayerTable } from "@/components/players/SeasonPlayerTable";
 import { Reveal } from "@/components/motion/Reveal";
 import { cn } from "@/lib/utils";
@@ -33,26 +29,19 @@ export default async function PlayersPage({
   searchParams: Promise<{ year?: string; week?: string; position?: string }>;
 }) {
   const ctx = await resolveSeason(searchParams);
-  const { seasonId, weekNum: week, weeks, year } = ctx;
+  const { seasonId, weekNum: week, year } = ctx;
   const params = await searchParams;
   const rawPosition = params.position?.toUpperCase();
   const position = POSITION_FILTERS.includes(rawPosition ?? "") ? rawPosition : undefined;
 
-  const performers = await getTopPerformers(seasonId, week);
-  const positionLeaders = getPositionLeaders(seasonId);
   const seasonRows = await getSeasonPlayerTable(seasonId, position);
   const tableRows: SeasonPlayerTableRow[] = seasonRows.map((r) => ({
     ...r,
     ppg: ptsPerGame(r.total_points, r.games),
   }));
   const revealed = await getRevealState();
-  const weekLabel = weeks.find((w) => w.week_num === week)?.label ?? `Week ${week}`;
 
-  const isEmptySeason =
-    !position &&
-    tableRows.length === 0 &&
-    performers.length === 0 &&
-    positionLeaders.length === 0;
+  const isEmptySeason = !position && tableRows.length === 0;
   const prevSeason = getSeasons().find((s) => s.year < ctx.year);
 
   const chipHref = (pos?: string) => {
@@ -65,7 +54,7 @@ export default async function PlayersPage({
     <div className="space-y-8">
       <PageHeader
         title="Players"
-        subtitle="Every player's season at a glance, plus weekly standouts and position leaders."
+        subtitle="Every player's season at a glance."
       />
 
       {isEmptySeason ? (
@@ -108,24 +97,6 @@ export default async function PlayersPage({
                 }
               />
               <SeasonPlayerTable rows={tableRows} revealed={revealed} />
-            </section>
-          </Reveal>
-
-          <Reveal delay={0.1}>
-            <section className="space-y-4">
-              <SectionHeader title="Top Performers" description={weekLabel} />
-              {performers.length > 0 ? (
-                <PerformersTable players={performers} />
-              ) : (
-                <EmptyState message="No player performances recorded for this week." />
-              )}
-            </section>
-          </Reveal>
-
-          <Reveal delay={0.15}>
-            <section className="space-y-4">
-              <SectionHeader title="Season Leaders by Position" />
-              <PositionLeaders data={positionLeaders} />
             </section>
           </Reveal>
         </>

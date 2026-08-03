@@ -1,7 +1,5 @@
 import { db } from "../db";
 import type {
-  PositionLeaders,
-  SeasonLeaderRow,
   SosRow,
   Team,
   TeamPlayerHistoryRow,
@@ -11,8 +9,6 @@ import type {
   WeekRosterRow,
 } from "../types";
 import { maskOne, maskRows, maskedOwnerName, maskedTeamAbbrev, maskedTeamName } from "./shared";
-
-const POSITION_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"];
 
 export async function getTeams(seasonId: number, weekNum?: number): Promise<TeamStandingRow[]> {
   const asOf = weekNum !== undefined ? "AND week_num <= ?" : "";
@@ -144,31 +140,5 @@ export function getTeamPlayerHistory(seasonId: number, teamId: number): TeamPlay
        GROUP BY r.espn_player_id, r.player_name, r.position, r.nfl_team
        ORDER BY first_week, total_points DESC`
     )
-    .all(seasonId, teamId) as TeamPlayerHistoryRow[];
-}
-
-export function getPositionLeaders(seasonId: number, limit = 5): PositionLeaders[] {
-  const rows = db
-    .prepare(
-      `SELECT pp.id AS player_id, r.player_name, r.position,
-              SUM(r.points) total_points, COUNT(*) games
-       FROM rosters r JOIN weeks w ON w.id = r.week_id
-       LEFT JOIN players pp ON pp.espn_player_id = r.espn_player_id
-       WHERE w.season_id = ? AND r.lineup_slot != 'BN'
-       GROUP BY r.espn_player_id, r.player_name, r.position
-       ORDER BY r.position, total_points DESC`
-    )
-    .all(seasonId) as SeasonLeaderRow[];
-
-  const byPosition = new Map<string, SeasonLeaderRow[]>();
-  for (const row of rows) {
-    const list = byPosition.get(row.position) ?? [];
-    if (list.length < limit) list.push(row);
-    byPosition.set(row.position, list);
-  }
-
-  return POSITION_ORDER.filter((p) => byPosition.has(p)).map((position) => ({
-    position,
-    leaders: byPosition.get(position) ?? [],
-  }));
+     .all(seasonId, teamId) as TeamPlayerHistoryRow[];
 }

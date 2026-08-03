@@ -327,19 +327,6 @@ export interface PlayerRow {
   owner_alias_num?: number | null;
 }
 
-export interface SeasonLeaderRow {
-  player_id: number | null;
-  player_name: string;
-  position: string;
-  total_points: number;
-  games: number;
-}
-
-export interface PositionLeaders {
-  position: string;
-  leaders: SeasonLeaderRow[];
-}
-
 export interface TransactionRow {
   type: string;
   player_name: string | null;
