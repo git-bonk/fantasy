@@ -78,7 +78,7 @@ def store_derived_transactions(conn: sqlite3.Connection, season_id: int) -> None
     )
     conn.executemany(
         "INSERT INTO transactions "
-        "(season_id, team_id, espn_player_id, player_name, type, bid_amount, occurred_at, "
-        "week_num, source) VALUES (?, ?, ?, ?, ?, NULL, '', ?, 'derived')",
+        "(season_id, team_id, espn_player_id, player_name, type, occurred_at, "
+        "week_num, source) VALUES (?, ?, ?, ?, ?, '', ?, 'derived')",
         compute_transactions(conn, season_id),
     )

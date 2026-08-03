@@ -12,10 +12,12 @@ import { TenureTimeline } from "@/components/players/TenureTimeline";
 import {
   careerSpan,
   getPlayerCareer,
+  getPlayerNflSeasons,
   getPlayerNflStats,
   getPlayerOwnership,
   getPlayerTenure,
   isFranchiseLegend,
+  missedOutSeasons,
   nflStatColumns,
   pointsBySeason,
   summarizeCareer,
@@ -33,9 +35,10 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
   const career = await getPlayerCareer(playerId);
   if (!career) notFound();
 
-  const [tenure, ownership, nflStats] = await Promise.all([
+  const [tenure, ownership, nflSeasons, nflWeekStats] = await Promise.all([
     getPlayerTenure(playerId),
     getPlayerOwnership(playerId),
+    getPlayerNflSeasons(playerId),
     getPlayerNflStats(playerId),
   ]);
   const summary = summarizeCareer(tenure);
@@ -43,12 +46,28 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
   const seasonPoints = pointsBySeason(tenure);
   const statColumns = nflStatColumns(career.position);
   const pointsByYear = new Map(seasonPoints.map((p) => [p.year, p.points]));
-  const nflRows: NflStatsRow[] = nflStats.map((s) => ({
-    year: s.year,
-    games: s.games,
-    fantasyPoints: pointsByYear.get(s.year) ?? 0,
-    stats: s.stats,
-  }));
+  const complete = nflSeasons.length > 0;
+  const missed = complete
+    ? missedOutSeasons(
+        nflSeasons,
+        tenure.map((t) => t.year),
+        career.position
+      )
+    : [];
+  const nflRows: NflStatsRow[] = complete
+    ? nflSeasons.map((s) => ({
+        year: s.year,
+        nflTeam: s.nflTeam,
+        games: s.games,
+        fantasyPoints: pointsByYear.get(s.year) ?? null,
+        stats: s.stats,
+      }))
+    : nflWeekStats.map((s) => ({
+        year: s.year,
+        games: s.games,
+        fantasyPoints: pointsByYear.get(s.year) ?? 0,
+        stats: s.stats,
+      }));
 
   return (
     <div className="space-y-6">
@@ -124,12 +143,31 @@ export default async function PlayerCareerPage({ params }: PlayerCareerPageProps
             <CardHeader className="border-b border-zinc-800 pb-3">
               <CardTitle className="font-display">NFL Production</CardTitle>
               <p className="text-xs text-zinc-500">
-                Real-world stats for the weeks this player was on a league roster, next to the
-                fantasy points they delivered.
+                {complete
+                  ? "Complete NFL seasons, next to the fantasy points this player delivered in the league."
+                  : "Real-world stats for the weeks this player was on a league roster, next to the fantasy points they delivered."}
               </p>
             </CardHeader>
+            {missed.length > 0 && (
+              <div className="mx-4 mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                <span className="font-semibold">Missed out:</span>{" "}
+                {missed
+                  .slice(-3)
+                  .map((m) =>
+                    m.headline ? `${m.headline} in ${m.year}` : `NFL production in ${m.year}`
+                  )
+                  .join("; ")}
+                {missed.length > 3 && ` and ${missed.length - 3} earlier seasons`} — never
+                rostered in this league {missed.length === 1 ? "that season" : "those seasons"}.
+              </div>
+            )}
             <CardContent className="p-0">
-              <NflStatsTable rows={nflRows} columns={statColumns} />
+              <NflStatsTable
+                rows={nflRows}
+                columns={statColumns}
+                showTeam={complete}
+                gamesLabel={complete ? "GP" : "Wks"}
+              />
             </CardContent>
           </Card>
         </Reveal>

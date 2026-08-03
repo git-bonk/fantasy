@@ -182,11 +182,6 @@ function TransactionItem({ tx }: { tx: TransactionFeedRow }) {
           </div>
         )}
       </div>
-      {tx.bid_amount != null && tx.bid_amount > 0 && (
-        <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-amber-400">
-          ${tx.bid_amount}
-        </span>
-      )}
     </div>
   );
 }

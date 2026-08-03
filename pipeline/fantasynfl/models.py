@@ -82,7 +82,6 @@ class Transaction:
     espn_player_id: int | None
     player_name: str | None
     type: str  # ADD, DROP, TRADE_IN, TRADE_OUT
-    bid_amount: int | None
     occurred_at: str  # ISO date
 
 
@@ -96,7 +95,6 @@ class DraftPick:
     overall_pick: int | None = None
     espn_player_id: int | None = None
     nfl_team: str | None = None
-    bid_amount: int | None = None
     keeper_status: int = 0
     nominating_espn_team_id: int | None = None
 

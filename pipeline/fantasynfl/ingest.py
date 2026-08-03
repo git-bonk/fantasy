@@ -68,7 +68,12 @@ def _ingest_one(db_path: Path, season: SeasonData, sims: int = 2000) -> None:
 def ingest_sample(
     db_path: Path, year: int = 2025, seed: int = 42, sims: int = 2000, verbose: bool = False
 ) -> None:
-    from .sample import generate_season, store_sample_schedule, store_sample_tokens
+    from .sample import (
+        generate_season,
+        store_sample_nfl_seasons,
+        store_sample_schedule,
+        store_sample_tokens,
+    )
 
     season = generate_season(year=year, league_id="sample", seed=seed)
     _ingest_one(db_path, season, sims=sims)
@@ -78,6 +83,7 @@ def ingest_sample(
         season_id = conn.execute("SELECT id FROM seasons WHERE year = ?", (year,)).fetchone()["id"]
         store_sample_tokens(conn, verbose=verbose)
         store_sample_schedule(conn, season_id, season)
+        store_sample_nfl_seasons(conn, year, seed=seed)
     finally:
         conn.close()
     print(f"Sample season {year} ingested -> {db_path}")

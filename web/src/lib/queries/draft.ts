@@ -10,7 +10,6 @@ export interface DraftPickRow {
   player_name: string;
   position: string;
   nfl_team: string | null;
-  bid_amount: number | null;
   keeper_status: number;
   team_id: number | null;
   tname: string | null;
@@ -68,7 +67,7 @@ export async function getDraft(seasonId: number): Promise<DraftPickRow[]> {
     .prepare(
       `SELECT d.id, d.round_num, d.round_pick, d.overall_pick,
               pp.id AS player_id,
-              d.player_name, d.position, d.nfl_team, d.bid_amount, d.keeper_status,
+              d.player_name, d.position, d.nfl_team, d.keeper_status,
               t.id AS team_id, t.name AS tname, t.abbrev AS abbrev,
               t.color AS color, o.alias_num AS owner_alias_num
        FROM draft_picks d

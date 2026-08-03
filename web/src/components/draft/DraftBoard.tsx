@@ -84,15 +84,6 @@ function DraftRow({ pick }: { pick: DraftPickRow }) {
           </div>
         </div>
       </TableCell>
-      <TableCell className="hidden text-right sm:table-cell">
-        {pick.bid_amount != null && pick.bid_amount > 0 ? (
-          <span className="font-mono text-sm font-bold tabular-nums text-amber-400">
-            ${pick.bid_amount}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
-      </TableCell>
     </TableRow>
   );
 }
@@ -117,9 +108,6 @@ export function DraftBoard({ picks }: DraftBoardProps) {
                   <TableHead className="w-16 text-center text-muted-foreground">Pick</TableHead>
                   <TableHead className="text-muted-foreground">Team</TableHead>
                   <TableHead className="text-muted-foreground">Player</TableHead>
-                  <TableHead className="hidden text-right text-muted-foreground sm:table-cell">
-                    Bid
-                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

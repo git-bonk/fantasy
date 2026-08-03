@@ -104,8 +104,8 @@ def test_store_is_idempotent_and_preserves_espn():
     conn = _make_db()
     conn.execute(
         "INSERT INTO transactions (season_id, team_id, espn_player_id, player_name, type, "
-        "bid_amount, occurred_at, source) "
-        "VALUES (1, 1, 105, 'P Five', 'ADD', 25, '2025-09-01T00:00:00', 'espn')"
+        "occurred_at, source) "
+        "VALUES (1, 1, 105, 'P Five', 'ADD', '2025-09-01T00:00:00', 'espn')"
     )
     conn.commit()
 
@@ -114,13 +114,13 @@ def test_store_is_idempotent_and_preserves_espn():
     conn.commit()
 
     espn = conn.execute(
-        "SELECT bid_amount FROM transactions WHERE season_id = 1 AND source = 'espn'"
+        "SELECT player_name FROM transactions WHERE season_id = 1 AND source = 'espn'"
     ).fetchall()
     derived = conn.execute(
         "SELECT COUNT(*) AS n FROM transactions WHERE season_id = 1 AND source = 'derived'"
     ).fetchone()["n"]
 
-    assert [r["bid_amount"] for r in espn] == [25]
+    assert [r["player_name"] for r in espn] == ["P Five"]
     assert derived == 6
 
 
@@ -143,6 +143,7 @@ def test_init_db_migrates_legacy_transactions_table():
 
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(transactions)").fetchall()}
     assert {"week_num", "source"} <= cols
+    assert "bid_amount" not in cols
     row = conn.execute("SELECT source, week_num FROM transactions").fetchone()
     assert row["source"] == "espn"
     assert row["week_num"] is None

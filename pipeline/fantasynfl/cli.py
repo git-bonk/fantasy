@@ -58,6 +58,23 @@ def main(argv: list[str] | None = None) -> None:
         help="Seconds to pause between week fetches (go easy on the ESPN API)",
     )
 
+    p_nfl_stats = sub.add_parser(
+        "nfl-stats",
+        help="Refresh complete NFL season stats for the stalest players (rate-limited)",
+    )
+    p_nfl_stats.add_argument(
+        "--max-calls",
+        type=int,
+        default=25,
+        help="Maximum ESPN athlete-API calls this run (owner policy: <= 25/hour)",
+    )
+    p_nfl_stats.add_argument(
+        "--delay",
+        type=float,
+        default=144.0,
+        help="Seconds between calls (default 144 = 25/hour pacing)",
+    )
+
     p_tokens = sub.add_parser("tokens", help="Manage per-owner prediction-game tokens")
     tokens_sub = p_tokens.add_subparsers(dest="tokens_command", required=True)
     p_tokens_gen = tokens_sub.add_parser("generate", help="Generate a token for an owner")
@@ -113,6 +130,25 @@ def main(argv: list[str] | None = None) -> None:
         backfill(
             config, sims=args.sims, verbose=args.verbose, only_year=args.year, delay=args.delay
         )
+    elif args.command == "nfl-stats":
+        import logging
+        import sys
+
+        from .db import connect, init_db
+        from .nfl_refresh import refresh_nfl_stats
+
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            datefmt="%H:%M:%S",
+            stream=sys.stderr,
+        )
+        conn = connect(db_path)
+        try:
+            init_db(conn)
+            refresh_nfl_stats(conn, max_calls=args.max_calls, delay=args.delay)
+        finally:
+            conn.close()
     elif args.command == "tokens":
         _run_tokens(db_path, args)
 

@@ -75,7 +75,6 @@ export interface Transactions {
   espn_player_id: number | null;
   player_name: string | null;
   type: string;
-  bid_amount: number | null;
   occurred_at: string;
   week_num: number | null;
   source: string;
@@ -187,6 +186,15 @@ export interface Players {
   nfl_team: string;
   first_season_id: number | null;
   last_season_id: number | null;
+  nfl_stats_fetched_at: string | null;
+}
+
+export interface PlayerNflSeasons {
+  player_id: number;
+  season_year: number;
+  nfl_team: string | null;
+  gp: number | null;
+  stats: string;
 }
 
 export interface CoachRatings {
@@ -250,7 +258,6 @@ export interface DraftPicks {
   player_name: string;
   position: string;
   nfl_team: string | null;
-  bid_amount: number | null;
   keeper_status: number;
   nominating_espn_team_id: number | null;
 }

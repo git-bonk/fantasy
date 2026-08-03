@@ -6,6 +6,7 @@ mirrors these tables in `web/src/lib/types.ts` — keep them in sync.
 
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 from pathlib import Path
 
@@ -88,7 +89,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   espn_player_id INTEGER,
   player_name TEXT,
   type TEXT NOT NULL,
-  bid_amount INTEGER,
   occurred_at TEXT NOT NULL,
   week_num INTEGER,
   source TEXT NOT NULL DEFAULT 'espn'
@@ -206,7 +206,17 @@ CREATE TABLE IF NOT EXISTS players (
   position TEXT NOT NULL,
   nfl_team TEXT NOT NULL,
   first_season_id INTEGER,
-  last_season_id INTEGER
+  last_season_id INTEGER,
+  nfl_stats_fetched_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS player_nfl_seasons (
+  player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  season_year INTEGER NOT NULL,
+  nfl_team TEXT,
+  gp INTEGER,
+  stats TEXT NOT NULL,
+  PRIMARY KEY (player_id, season_year)
 );
 
 CREATE TABLE IF NOT EXISTS coach_ratings (
@@ -273,7 +283,6 @@ CREATE TABLE IF NOT EXISTS draft_picks (
   player_name TEXT NOT NULL,
   position TEXT NOT NULL,
   nfl_team TEXT,
-  bid_amount INTEGER,
   keeper_status INTEGER NOT NULL DEFAULT 0,
   nominating_espn_team_id INTEGER
 );
@@ -338,10 +347,8 @@ def init_db(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass
     if "last_seen_season_id" in owner_cols:
-        try:
+        with contextlib.suppress(sqlite3.OperationalError):
             conn.execute("ALTER TABLE owners DROP COLUMN last_seen_season_id")
-        except sqlite3.OperationalError:
-            pass
     week_cols = {r["name"] for r in conn.execute("PRAGMA table_info(weeks)").fetchall()}
     if "finalized" not in week_cols:
         try:
@@ -374,12 +381,23 @@ def init_db(conn: sqlite3.Connection) -> None:
             conn.execute("ALTER TABLE transactions ADD COLUMN source TEXT NOT NULL DEFAULT 'espn'")
         except sqlite3.OperationalError:
             pass
+    if "bid_amount" in tx_cols:
+        with contextlib.suppress(sqlite3.OperationalError):
+            conn.execute("ALTER TABLE transactions DROP COLUMN bid_amount")
+    draft_cols = {r["name"] for r in conn.execute("PRAGMA table_info(draft_picks)").fetchall()}
+    if "bid_amount" in draft_cols:
+        with contextlib.suppress(sqlite3.OperationalError):
+            conn.execute("ALTER TABLE draft_picks DROP COLUMN bid_amount")
     roster_cols = {r["name"] for r in conn.execute("PRAGMA table_info(rosters)").fetchall()}
     if "raw_stats" not in roster_cols:
         try:
             conn.execute("ALTER TABLE rosters ADD COLUMN raw_stats TEXT")
         except sqlite3.OperationalError:
             pass
+    player_cols = {r["name"] for r in conn.execute("PRAGMA table_info(players)").fetchall()}
+    if "nfl_stats_fetched_at" not in player_cols:
+        with contextlib.suppress(sqlite3.OperationalError):
+            conn.execute("ALTER TABLE players ADD COLUMN nfl_stats_fetched_at TEXT")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_transactions_season ON transactions(season_id, source)"
     )

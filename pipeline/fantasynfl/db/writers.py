@@ -224,6 +224,25 @@ def store_week(
     conn.commit()
 
 
+def store_player_nfl_seasons(
+    conn: sqlite3.Connection,
+    player_id: int,
+    seasons: list,
+    fetched_at: str,
+) -> None:
+    """Replace one player's complete NFL season stats (idempotent per player)."""
+    conn.execute("DELETE FROM player_nfl_seasons WHERE player_id = ?", (player_id,))
+    conn.executemany(
+        "INSERT INTO player_nfl_seasons (player_id, season_year, nfl_team, gp, stats) "
+        "VALUES (?, ?, ?, ?, ?)",
+        [(player_id, s.season_year, s.nfl_team, s.gp, json.dumps(s.stats)) for s in seasons],
+    )
+    conn.execute(
+        "UPDATE players SET nfl_stats_fetched_at = ? WHERE id = ?", (fetched_at, player_id)
+    )
+    conn.commit()
+
+
 def store_transactions(
     conn: sqlite3.Connection,
     season_id: int,
@@ -236,15 +255,14 @@ def store_transactions(
         tid = team_row_id[tx.team_id] if tx.team_id is not None else None
         conn.execute(
             "INSERT INTO transactions "
-            "(season_id, team_id, espn_player_id, player_name, type, bid_amount, occurred_at, "
-            "source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "(season_id, team_id, espn_player_id, player_name, type, occurred_at, "
+            "source) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 season_id,
                 tid,
                 tx.espn_player_id,
                 tx.player_name,
                 tx.type,
-                tx.bid_amount,
                 tx.occurred_at,
                 "espn",
             ),
@@ -270,8 +288,8 @@ def store_draft(conn: sqlite3.Connection, season_id: int, draft_picks: list[Draf
     conn.executemany(
         "INSERT INTO draft_picks "
         "(season_id, team_id, espn_team_id, round_num, round_pick, overall_pick, "
-        "espn_player_id, player_name, position, nfl_team, bid_amount, keeper_status, "
-        "nominating_espn_team_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "espn_player_id, player_name, position, nfl_team, keeper_status, "
+        "nominating_espn_team_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (
                 season_id,
@@ -284,7 +302,6 @@ def store_draft(conn: sqlite3.Connection, season_id: int, draft_picks: list[Draf
                 p.player_name,
                 p.position,
                 p.nfl_team,
-                p.bid_amount,
                 p.keeper_status,
                 p.nominating_espn_team_id,
             )

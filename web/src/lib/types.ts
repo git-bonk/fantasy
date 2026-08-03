@@ -97,7 +97,6 @@ export interface Transaction {
   espn_player_id: number | null;
   player_name: string | null;
   type: string;
-  bid_amount: number | null;
   occurred_at: string;
   week_num: number | null;
   source: string;
@@ -344,7 +343,6 @@ export interface PositionLeaders {
 export interface TransactionRow {
   type: string;
   player_name: string | null;
-  bid_amount: number | null;
   week_num: number;
   week_label: string;
   tname: string | null;

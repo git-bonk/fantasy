@@ -7,6 +7,7 @@ A team's matchup score always equals the sum of its starter roster points.
 
 from __future__ import annotations
 
+import json
 import random
 import sqlite3
 from dataclasses import replace
@@ -525,7 +526,6 @@ def _make_transactions(
                     espn_player_id=player["espn_player_id"],
                     player_name=player["name"],
                     type=ttype,
-                    bid_amount=rng.choice([0, 0, 5, 12, 25, 40]) if ttype == "ADD" else None,
                     occurred_at=day.isoformat(),
                 )
             )
@@ -542,7 +542,7 @@ def _make_draft(
     Rounds equal the roster size and the pick order snakes (each even round reverses
     the previous one). A team's picks come from its own pool ordered best-first by
     talent, so early rounds carry the strongest players and the drafted player ids
-    match the generated rosters. The league is snake, so ``bid_amount`` stays None.
+    match the generated rosters.
     """
     ordered = {tid: sorted(pools[tid], key=lambda p: -p["talent"]) for tid in team_ids}
     rounds = max((len(v) for v in ordered.values()), default=0)
@@ -566,7 +566,6 @@ def _make_draft(
                     player_name=player["name"],
                     position=player["position"],
                     nfl_team=player["nfl_team"],
-                    bid_amount=None,
                     keeper_status=1 if rng.random() < 0.12 else 0,
                     nominating_espn_team_id=None,
                 )
@@ -577,6 +576,76 @@ def _make_draft(
 def sample_token_plaintext(alias_num: int) -> str:
     """Deterministic dev token plaintext for a synthetic owner."""
     return f"sample-token-{alias_num:02d}"
+
+
+def _sample_season_stats(rng: random.Random, position: str) -> dict[str, float]:
+    if position == "QB":
+        att = rng.randint(420, 620)
+        return {
+            "passingAttempts": float(att),
+            "passingCompletions": float(int(att * rng.uniform(0.6, 0.7))),
+            "passingYards": float(rng.randint(3200, 5200)),
+            "passingTouchdowns": float(rng.randint(18, 38)),
+            "passingInterceptions": float(rng.randint(4, 14)),
+            "rushingAttempts": float(rng.randint(20, 120)),
+            "rushingYards": float(rng.randint(50, 700)),
+            "rushingTouchdowns": float(rng.randint(0, 10)),
+        }
+    if position == "RB":
+        rec = rng.randint(15, 80)
+        return {
+            "rushingAttempts": float(rng.randint(150, 320)),
+            "rushingYards": float(rng.randint(600, 1800)),
+            "rushingTouchdowns": float(rng.randint(4, 16)),
+            "receivingReceptions": float(rec),
+            "receivingTargets": float(int(rec * rng.uniform(1.2, 1.6))),
+            "receivingYards": float(rng.randint(100, 700)),
+            "receivingTouchdowns": float(rng.randint(0, 5)),
+        }
+    if position in ("WR", "TE"):
+        rec = rng.randint(40, 130)
+        return {
+            "receivingReceptions": float(rec),
+            "receivingTargets": float(int(rec * rng.uniform(1.25, 1.7))),
+            "receivingYards": float(rng.randint(500, 1800)),
+            "receivingTouchdowns": float(rng.randint(2, 14)),
+        }
+    if position == "K":
+        made = rng.randint(25, 40)
+        return {
+            "madeFieldGoals": float(made),
+            "attemptedFieldGoals": float(made + rng.randint(1, 5)),
+            "madeExtraPoints": float(rng.randint(30, 50)),
+            "attemptedExtraPoints": float(rng.randint(30, 52)),
+        }
+    return {}
+
+
+def store_sample_nfl_seasons(conn: sqlite3.Connection, year: int, seed: int = 42) -> None:
+    """Synthesize complete NFL season stats for sample players (Phase 2).
+
+    ~25% of players also get an earlier NFL-only season (no league roster rows) so the
+    missed-out UI is exercised locally.
+    """
+    rng = random.Random(seed * 1000 + 7)
+    now = datetime.now(UTC).isoformat()
+    players = conn.execute("SELECT id, position, nfl_team FROM players").fetchall()
+    for p in players:
+        if p["position"] == "DEF":
+            conn.execute("UPDATE players SET nfl_stats_fetched_at = ? WHERE id = ?", (now, p["id"]))
+            continue
+        seasons = [(year, _sample_season_stats(rng, p["position"]))]
+        if rng.random() < 0.25:
+            earlier = year - rng.choice((1, 2))
+            seasons.insert(0, (earlier, _sample_season_stats(rng, p["position"])))
+        for season_year, stats in seasons:
+            conn.execute(
+                "INSERT OR REPLACE INTO player_nfl_seasons "
+                "(player_id, season_year, nfl_team, gp, stats) VALUES (?, ?, ?, ?, ?)",
+                (p["id"], season_year, p["nfl_team"], rng.randint(14, 17), json.dumps(stats)),
+            )
+        conn.execute("UPDATE players SET nfl_stats_fetched_at = ? WHERE id = ?", (now, p["id"]))
+    conn.commit()
 
 
 def store_sample_tokens(conn: sqlite3.Connection, verbose: bool = False) -> None:

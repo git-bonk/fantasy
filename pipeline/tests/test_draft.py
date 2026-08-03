@@ -134,7 +134,6 @@ class _Pick:
         name: str,
         pos: str,
         overall: int | None = None,
-        bid: int = 0,
         keeper: int = 0,
         nominating_id: int | None = None,
     ) -> None:
@@ -145,7 +144,6 @@ class _Pick:
         self.playerName = name
         self.position = pos
         self.overall_pick = overall
-        self.bid_amount = bid
         self.keeper_status = keeper
         self.nominatingTeam = _Team(nominating_id) if nominating_id else None
 
@@ -164,7 +162,7 @@ def _client(league: _League) -> ESPNClient:
 def test_fetch_draft_maps_picks_and_normalizes_position():
     picks = [
         _Pick(1, 1, 1, 100, "Player A", "D/ST", overall=1, keeper=1, nominating_id=2),
-        _Pick(2, 1, 2, 200, "Player B", "RB", overall=2, bid=25),
+        _Pick(2, 1, 2, 200, "Player B", "RB", overall=2),
     ]
     rows = _client(_League(picks)).fetch_draft()
     assert len(rows) == 2
@@ -173,9 +171,7 @@ def test_fetch_draft_maps_picks_and_normalizes_position():
     assert rows[0].espn_player_id == 100
     assert rows[0].keeper_status == 1
     assert rows[0].nominating_espn_team_id == 2
-    assert rows[0].bid_amount is None
     assert rows[1].position == "RB"
-    assert rows[1].bid_amount == 25
 
 
 def test_fetch_draft_empty_when_no_draft():

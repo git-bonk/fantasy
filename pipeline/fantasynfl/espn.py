@@ -314,7 +314,6 @@ class ESPNClient:
                         espn_player_id=int(getattr(player, "playerId", 0) or 0),
                         player_name=getattr(player, "name", None),
                         type=ttype,
-                        bid_amount=None,
                         occurred_at=date_iso,
                     )
                 )
@@ -326,7 +325,7 @@ class ESPNClient:
 
         espn_api builds ``league.draft`` (a list of pick objects exposing ``team``,
         ``playerId``, ``playerName``, ``position``, ``round_num``, ``round_pick``,
-        ``bid_amount``, ``keeper_status``, and ``nominatingTeam``) during ``League``
+        ``keeper_status``, and ``nominatingTeam``) during ``League``
         construction, so this makes no extra API calls. Returns an empty list when
         ESPN has no draft detail (e.g. very old seasons) so ingest never fails on a
         missing draft.
@@ -350,7 +349,6 @@ class ESPNClient:
                     player_name=getattr(p, "playerName", "") or "",
                     position=_norm_position(getattr(p, "position", "") or ""),
                     nfl_team=None,
-                    bid_amount=int(getattr(p, "bid_amount", 0) or 0) or None,
                     keeper_status=int(getattr(p, "keeper_status", 0) or 0),
                     nominating_espn_team_id=nominating_id,
                 )

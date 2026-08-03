@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   careerSpan,
   FRANCHISE_LEGEND_SEASONS,
+  headlineStat,
   isFranchiseLegend,
+  missedOutSeasons,
   NFL_STAT_KEYS,
   nflStatColumns,
   pointsBySeason,
   summarizeCareer,
+  type CompleteNflSeason,
   type PlayerTenureRow,
 } from "@/lib/queries/player-career";
 
@@ -125,5 +128,53 @@ describe("nflStatColumns", () => {
   it("returns no columns for unknown positions", () => {
     expect(nflStatColumns("")).toEqual([]);
     expect(nflStatColumns("P")).toEqual([]);
+  });
+});
+
+const nflSeason = (over: Partial<CompleteNflSeason> = {}): CompleteNflSeason => ({
+  year: 2025,
+  nflTeam: "seattle-seahawks",
+  games: 17,
+  stats: { receivingYards: 1793 },
+  ...over,
+});
+
+describe("headlineStat", () => {
+  it("formats the position's headline counter with thousands separators", () => {
+    expect(headlineStat({ receivingYards: 1793 }, "WR")).toBe("1,793 receiving yards");
+    expect(headlineStat({ passingYards: 4201 }, "QB")).toBe("4,201 passing yards");
+    expect(headlineStat({ rushingYards: 950 }, "RB")).toBe("950 rushing yards");
+    expect(headlineStat({ madeFieldGoals: 36 }, "K")).toBe("36 field goals");
+  });
+
+  it("returns null when the counter is missing, zero, or the position is unknown", () => {
+    expect(headlineStat({}, "WR")).toBeNull();
+    expect(headlineStat({ receivingYards: 0 }, "WR")).toBeNull();
+    expect(headlineStat({ defensiveSacks: 12 }, "DEF")).toBeNull();
+  });
+});
+
+describe("missedOutSeasons", () => {
+  it("keeps only seasons with no league roster tenure", () => {
+    const seasons = [
+      nflSeason({ year: 2023, stats: { receivingYards: 628 } }),
+      nflSeason({ year: 2024 }),
+      nflSeason({ year: 2025, stats: { receivingYards: 1130 } }),
+    ];
+    expect(missedOutSeasons(seasons, [2024, 2025], "WR")).toEqual([
+      { year: 2023, headline: "628 receiving yards" },
+    ]);
+  });
+
+  it("returns every season when the player was never rostered", () => {
+    const seasons = [nflSeason({ year: 2024 }), nflSeason({ year: 2025 })];
+    expect(missedOutSeasons(seasons, [], "WR")).toEqual([
+      { year: 2024, headline: "1,793 receiving yards" },
+      { year: 2025, headline: "1,793 receiving yards" },
+    ]);
+  });
+
+  it("returns nothing when every season had league tenure", () => {
+    expect(missedOutSeasons([nflSeason({ year: 2025 })], [2025], "WR")).toEqual([]);
   });
 });

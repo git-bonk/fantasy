@@ -294,6 +294,73 @@ export async function getPlayerNflStats(playerId: number): Promise<NflSeasonStat
   });
 }
 
+export interface CompleteNflSeason {
+  year: number;
+  nflTeam: string | null;
+  games: number | null;
+  stats: Record<string, number>;
+}
+
+/**
+ * Complete NFL seasons from the Phase-2 table (every season the player produced in the
+ * NFL, whether or not anyone in this league rostered them). Empty until the rate-limited
+ * refresh reaches the player — callers fall back to getPlayerNflStats.
+ */
+export async function getPlayerNflSeasons(playerId: number): Promise<CompleteNflSeason[]> {
+  const rows = db
+    .prepare(
+      `SELECT season_year, nfl_team, gp, stats
+       FROM player_nfl_seasons
+       WHERE player_id = @playerId
+       ORDER BY season_year ASC`
+    )
+    .all({ playerId }) as { season_year: number; nfl_team: string | null; gp: number | null; stats: string }[];
+
+  return rows.map((row) => ({
+    year: row.season_year,
+    nflTeam: row.nfl_team,
+    games: row.gp,
+    stats: JSON.parse(row.stats) as Record<string, number>,
+  }));
+}
+
+const HEADLINE_KEY: Record<string, { key: string; noun: string }> = {
+  QB: { key: "passingYards", noun: "passing yards" },
+  RB: { key: "rushingYards", noun: "rushing yards" },
+  WR: { key: "receivingYards", noun: "receiving yards" },
+  TE: { key: "receivingYards", noun: "receiving yards" },
+  K: { key: "madeFieldGoals", noun: "field goals" },
+};
+
+/** Headline stat for a missed-out season, e.g. "1,793 receiving yards". */
+export function headlineStat(stats: Record<string, number>, position: string): string | null {
+  const spec = HEADLINE_KEY[position];
+  if (!spec) return null;
+  const value = stats[spec.key];
+  if (value == null || value <= 0) return null;
+  return `${value.toLocaleString("en-US")} ${spec.noun}`;
+}
+
+export interface MissedSeason {
+  year: number;
+  headline: string | null;
+}
+
+/**
+ * NFL seasons where the player produced but never appeared on a league roster — the
+ * "missed out" set. leagueYears are the seasons this player spent on any league team.
+ */
+export function missedOutSeasons(
+  seasons: CompleteNflSeason[],
+  leagueYears: Iterable<number>,
+  position: string
+): MissedSeason[] {
+  const rostered = new Set(leagueYears);
+  return seasons
+    .filter((s) => !rostered.has(s.year))
+    .map((s) => ({ year: s.year, headline: headlineStat(s.stats, position) }));
+}
+
 /** Human-readable career span, e.g. "2018–2024", "2020", or "—" when unknown. */
 export function careerSpan(firstYear: number | null, lastYear: number | null): string {
   const years = [firstYear, lastYear].filter((y): y is number => y != null);
